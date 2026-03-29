@@ -1,0 +1,373 @@
+{
+  "categories": {
+    "1": {
+      "name_zh": "农业",
+      "name_ru": "Сельское хозяйство",
+      "name_en": "Agriculture",
+      "subcategories": {}
+    },
+    "2": {
+      "name_zh": "食品酒水",
+      "name_ru": "Продукты и напитки",
+      "name_en": "Food and Beverages",
+      "subcategories": {}
+    },
+    "4": {
+      "name_zh": "纺织、皮革",
+      "name_ru": "Текстиль и кожа",
+      "name_en": "Textiles and Leather",
+      "subcategories": {}
+    },
+    "5": {
+      "name_zh": "电工电气",
+      "name_ru": "Электрооборудование",
+      "name_en": "Electrical Equipment",
+      "subcategories": {}
+    },
+    "6": {
+      "name_zh": "家用电器",
+      "name_ru": "Бытовая техника",
+      "name_en": "Home Appliances",
+      "subcategories": {}
+    },
+    "7": {
+      "name_zh": "数码、电脑",
+      "name_ru": "Электроника и компьютеры",
+      "name_en": "Electronics and Computers",
+      "subcategories": {}
+    },
+    "8": {
+      "name_zh": "化工",
+      "name_ru": "Химическая промышленность",
+      "name_en": "Chemicals",
+      "subcategories": {}
+    },
+    "9": {
+      "name_zh": "冶金矿产",
+      "name_ru": "Металлургия и полезные ископаемые",
+      "name_en": "Metallurgy and Minerals",
+      "subcategories": {}
+    },
+    "10": {
+      "name_zh": "能源",
+      "name_ru": "Энергетика",
+      "name_en": "Energy",
+      "subcategories": {}
+    },
+    "12": {
+      "name_zh": "交通运输",
+      "name_ru": "Транспорт и логистика",
+      "name_en": "Transportation",
+      "subcategories": {}
+    },
+    "13": {
+      "name_zh": "家装建材",
+      "name_ru": "Стройматериалы",
+      "name_en": "Building Materials",
+      "subcategories": {}
+    },
+    "15": {
+      "name_zh": "居家日用品",
+      "name_ru": "Товары для дома",
+      "name_en": "Household Items",
+      "subcategories": {}
+    },
+    "18": {
+      "name_zh": "运动户外",
+      "name_ru": "Спорт и отдых",
+      "name_en": "Sports and Outdoor",
+      "subcategories": {}
+    },
+    "53": {
+      "name_zh": "传媒、广电",
+      "name_ru": "СМИ и телерадиовещание",
+      "name_en": "Media and Broadcasting",
+      "subcategories": {}
+    },
+    "54": {
+      "name_zh": "服饰配件、饰品",
+      "name_ru": "Аксессуары и украшения",
+      "name_en": "Accessories and Jewelry",
+      "subcategories": {}
+    },
+    "55": {
+      "name_zh": "橡塑",
+      "name_ru": "Резина и пластик",
+      "name_en": "Rubber and Plastic",
+      "subcategories": {}
+    },
+    "57": {
+      "name_zh": "电子元器件",
+      "name_ru": "Электронные компоненты",
+      "name_en": "Electronic Components",
+      "subcategories": {}
+    },
+    "58": {
+      "name_zh": "灯饰照明",
+      "name_ru": "Освещение",
+      "name_en": "Lighting",
+      "subcategories": {}
+    },
+    "59": {
+      "name_zh": "五金、工具",
+      "name_ru": "Инструменты и метизы",
+      "name_en": "Hardware and Tools",
+      "subcategories": {}
+    },
+    "64": {
+      "name_zh": "环保",
+      "name_ru": "Экология",
+      "name_en": "Environmental Protection",
+      "subcategories": {}
+    },
+    "65": {
+      "name_zh": "机械及行业设备",
+      "name_ru": "Промышленное оборудование",
+      "name_en": "Machinery and Equipment",
+      "subcategories": {}
+    },
+    "66": {
+      "name_zh": "医药、保养",
+      "name_ru": "Медицина и здоровье",
+      "name_en": "Medicine and Health",
+      "subcategories": {}
+    },
+    "67": {
+      "name_zh": "办公、文化",
+      "name_ru": "Офис и культура",
+      "name_en": "Office and Culture",
+      "subcategories": {}
+    },
+    "68": {
+      "name_zh": "包装",
+      "name_ru": "Упаковка",
+      "name_en": "Packaging",
+      "subcategories": {}
+    },
+    "69": {
+      "name_zh": "商务服务",
+      "name_ru": "Бизнес-услуги",
+      "name_en": "Business Services",
+      "subcategories": {}
+    },
+    "70": {
+      "name_zh": "安全、防护",
+      "name_ru": "Безопасность",
+      "name_en": "Security and Protection",
+      "subcategories": {}
+    },
+    "71": {
+      "name_zh": "汽摩及配件",
+      "name_ru": "Автомобили и мотоциклы",
+      "name_en": "Auto and Motorcycle",
+      "subcategories": {}
+    },
+    "72": {
+      "name_zh": "印刷",
+      "name_ru": "Полиграфия",
+      "name_en": "Printing",
+      "subcategories": {}
+    },
+    "96": {
+      "name_zh": "家纺家饰",
+      "name_ru": "Домашний текстиль",
+      "name_en": "Home Textiles",
+      "subcategories": {}
+    },
+    "97": {
+      "name_zh": "美容护肤/彩妆",
+      "name_ru": "Косметика и уход",
+      "name_en": "Beauty and Cosmetics",
+      "subcategories": {}
+    },
+    "2805": {
+      "name_zh": "加工",
+      "name_ru": "Производство",
+      "name_en": "Processing",
+      "subcategories": {}
+    },
+    "2829": {
+      "name_zh": "二手设备转让",
+      "name_ru": "Продажа б/у оборудования",
+      "name_en": "Used Equipment",
+      "subcategories": {}
+    },
+    "304": {
+      "name_zh": "皮草",
+      "name_ru": "Мех",
+      "name_en": "Fur",
+      "subcategories": {}
+    },
+    "311": {
+      "name_zh": "童装",
+      "name_ru": "Детская одежда",
+      "name_en": "Children's Clothing",
+      "subcategories": {}
+    },
+    "312": {
+      "name_zh": "内衣",
+      "name_ru": "Нижнее белье",
+      "name_en": "Underwear",
+      "subcategories": {}
+    },
+    "319": {
+      "name_zh": "女式风衣",
+      "name_ru": "Женское пальто",
+      "name_en": "Women's Trench Coat",
+      "subcategories": {}
+    },
+    "509": {
+      "name_zh": "通信产品",
+      "name_ru": "Телекоммуникации",
+      "name_en": "Telecommunications",
+      "subcategories": {}
+    },
+    "1813": {
+      "name_zh": "玩具",
+      "name_ru": "Игрушки",
+      "name_en": "Toys",
+      "subcategories": {}
+    },
+    "1426": {
+      "name_zh": "机床",
+      "name_ru": "Станочное оборудование",
+      "name_en": "Machine Tools",
+      "subcategories": {}
+    },
+    "1042954": {
+      "name_zh": "箱包皮具",
+      "name_ru": "Сумки и кожаные изделия",
+      "name_en": "Bags and Leather Goods",
+      "subcategories": {}
+    },
+    "1038378": {
+      "name_zh": "鞋",
+      "name_ru": "Обувь",
+      "name_en": "Shoes",
+      "subcategories": {}
+    },
+    "10165": {
+      "name_zh": "男装",
+      "name_ru": "Мужская одежда",
+      "name_en": "Men's Clothing",
+      "subcategories": {}
+    },
+    "10166": {
+      "name_zh": "女装",
+      "name_ru": "Женская одежда",
+      "name_en": "Women's Clothing",
+      "subcategories": {
+        "1031910": "连衣裙 (Платье, Dress)",
+        "1031912": "半身裙 (Юбка, Skirt)",
+        "1031918": "女式衬衫 (Блузка, Blouse)",
+        "1031919": "女式T恤 (Футболка, T-Shirt)",
+        "1037020": "小西装 (Пиджак, Blazer)",
+        "1037021": "女式卫衣、绒衫 (Худи, Hoodie)",
+        "1031869": "女式牛仔裤 (Джинсы, Jeans)",
+        "1036617": "女式马甲 (Жилет, Vest)",
+        "1048182": "蕾丝衫、雪纺衫 (Кружевная блузка, Lace Blouse)",
+        "1048256": "时尚休闲套装 (Повседневный костюм, Casual Suit)",
+        "125420001": "女式毛呢外套 (Шерстяное пальто, Wool Coat)",
+        "125740002": "婚纱/礼服/旗袍 (Свадебное платье/Ципао, Wedding/Qipao)",
+        "125746001": "女式毛衣 (Свитер, Sweater)",
+        "125748001": "女式休闲裤 (Брюки, Pants)",
+        "125750001": "女装杂款 (Разное, Mixed)",
+        "125750002": "女式夹克/棒球服 (Куртка, Jacket)",
+        "127360010": "女式羽绒服 (Пуховик, Down Jacket)",
+        "127372010": "大码女装 (Большие размеры, Plus Size)",
+        "127380008": "女式打底裤 (Леггинсы, Leggings)",
+        "127386001": "女式针织衫 (Вязаный джемпер, Knitted Sweater)",
+        "127420001": "女式棉衣 (Хлопковая куртка, Cotton Jacket)",
+        "201158403": "国际民族服装 (Национальная одежда, Ethnic)",
+        "201195601": "女式防晒衣 (Солнцезащитная одежда, Sun Protection)",
+        "201217707": "二次元动漫服装 (Аниме костюм, Anime Costume)",
+        "201322301": "女士POLO衫 (Поло, Polo)",
+        "201325101": "女士连体裤/衣 (Комбинезон, Jumpsuit)",
+        "201547109": "女士卫裤 (Спортивные брюки, Sweatpants)",
+        "201548301": "JK制服 (JK Uniform)",
+        "201548401": "工作/工装制服 (Рабочая форма, Work Uniform)",
+        "201548501": "舞台表演服 (Сценический костюм, Stage Costume)",
+        "201548601": "情侣服装 (Парная одежда, Couple Clothing)",
+        "201548801": "女式职业套装 (Деловой костюм, Business Suit)",
+        "201560705": "女士牛仔外套 (Джинсовка, Denim Jacket)",
+        "201585902": "女士短裤 (Шорты, Shorts)",
+        "201723506": "女士打底 (Белье, Base Layer)",
+        "202025703": "中老年女装 (Для пожилых, Mature)",
+        "202041302": "汉服 (Ханьфу, Hanfu)",
+        "202050801": "女式唐装 (Танский костюм, Tang Suit)",
+        "202050901": "洛丽塔Lolita (Lolita)",
+        "202052806": "少数民族服饰 (Народная одежда, Minority)",
+        "202056910": "女装加工定制 (Пошив на заказ, Custom)",
+        "202057812": "女式羊绒外套 (Кашемировое пальто, Cashmere)",
+        "201159103": "禅茶服 (Медитация, Meditation)",
+        "122196004": "孕妇装 (Для беременных, Maternity)"
+      }
+    },
+    "10208": {
+      "name_zh": "仪器仪表",
+      "name_ru": "Приборы и инструменты",
+      "name_en": "Instruments",
+      "subcategories": {}
+    },
+    "123614001": {
+      "name_zh": "钢铁",
+      "name_ru": "Сталь и железо",
+      "name_en": "Steel and Iron",
+      "subcategories": {}
+    },
+    "122916001": {
+      "name_zh": "宠物及园艺",
+      "name_ru": "Питомцы и садоводство",
+      "name_en": "Pets and Gardening",
+      "subcategories": {}
+    },
+    "122916002": {
+      "name_zh": "汽车用品",
+      "name_ru": "Автотовары",
+      "name_en": "Car Accessories",
+      "subcategories": {}
+    },
+    "130822002": {
+      "name_zh": "餐饮生鲜",
+      "name_ru": "Общественное питание",
+      "name_en": "Catering",
+      "subcategories": {}
+    },
+    "130822220": {
+      "name_zh": "个护/家清",
+      "name_ru": "Личная гигиена и уборка",
+      "name_en": "Personal Care and Cleaning",
+      "subcategories": {}
+    },
+    "130823000": {
+      "name_zh": "成人用品",
+      "name_ru": "Взрослые товары",
+      "name_en": "Adult Products",
+      "subcategories": {}
+    },
+    "201346017": {
+      "name_zh": "建材",
+      "name_ru": "Стройматериалы",
+      "name_en": "Building Materials",
+      "subcategories": {}
+    },
+    "201547801": {
+      "name_zh": "日用餐厨饮具",
+      "name_ru": "Кухонная посуда",
+      "name_en": "Kitchenware",
+      "subcategories": {}
+    },
+    "201547901": {
+      "name_zh": "收纳清洁用具",
+      "name_ru": "Уборочный инвентарь",
+      "name_en": "Cleaning Supplies",
+      "subcategories": {}
+    },
+    "202052814": {
+      "name_zh": "新能源",
+      "name_ru": "Новая энергия",
+      "name_en": "New Energy",
+      "subcategories": {}
+    }
+  }
+}
