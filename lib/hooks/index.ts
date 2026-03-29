@@ -1,3 +1,3 @@
-export { useCart } from './useCart'
-export { useFavorites } from './useFavorites'
-export { useSearch } from './useSearch'
+export { useCart } from '../../hooks/useCart'
+export { useFavorites } from '../../hooks/useFavorites'
+export { useSearch } from '../../hooks/useSearch'
