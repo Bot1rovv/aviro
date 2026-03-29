@@ -8,28 +8,26 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 
-interface ProductProps extends ProductItem {
+// СЕНЬОРСКИЙ ФИКС: Используем Omit, чтобы исключить конфликтующие поля из ProductItem
+interface ProductProps extends Omit<ProductItem, 'sales' | 'rating'> {
     sales?: string | number;
     rating?: string | number;
 }
 
 export default function Product({ productId, title, price, imageUrl, source, sales, rating }: ProductProps) {
+    // ... весь остальной код компонента остается БЕЗ изменений ...
+    // ... включая логику useEffect для поиска реальной цены ...
+    
     const { addItem, removeItem, isInCart } = useCart()
     const { addFavorite, removeFavorite, isFavorite } = useFavorites()
 
     const favorite = isFavorite(productId)
     const inCart = isInCart(productId)
 
-    // Исходная цена из поиска
     const initialPrice = parseFloat(String(price).replace(/[^\d.-]/g, '')) || 0;
-    
-    // СЕНЬОРСКОЕ РЕШЕНИЕ: Состояние для отображаемой цены
     const [displayPrice, setDisplayPrice] = useState(initialPrice === 0 ? 150 : initialPrice);
 
-    // Умный поиск реальной цены
     useEffect(() => {
-        // Если цена подозрительно низкая (китайская замануха за 0.01 юаня),
-        // тихо запрашиваем реальную цену из API детальной страницы
         if (initialPrice > 0 && initialPrice < 40) {
             fetch(`/api/product/${productId}`)
                 .then(res => res.json())
@@ -58,7 +56,7 @@ export default function Product({ productId, title, price, imageUrl, source, sal
     const displayRating = rating || (Math.random() * (5 - 4) + 4).toFixed(1);
 
     return (
-        <div className="group bg-white rounded-lg border border-gray-100 hover:shadow-lg hover:border-blue-200 transition-all duration-300 flex flex-col h-full overflow-hidden">
+        <div className="group bg-white rounded-lg border border-gray-100 hover:shadow-lg hover:border-red-200 transition-all duration-300 flex flex-col h-full overflow-hidden">
             <div className="relative aspect-square bg-gray-50 flex-shrink-0" suppressHydrationWarning>
                 <Link href={`/product/${productId}`} className="block w-full h-full">
                     {imageUrl ? (
@@ -68,7 +66,7 @@ export default function Product({ productId, title, price, imageUrl, source, sal
                     )}
                 </Link>
                 {source && <div className="absolute top-0 left-0"><SourceBadge source={source} /></div>}
-                <button onClick={handleToggleFavorite} className="absolute top-2 right-2 w-7 h-7 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-sm hover:shadow transition-all z-10" title={favorite ? 'Удалить' : 'В избранное'}>
+                <button onClick={handleToggleFavorite} className="absolute top-2 right-2 w-7 h-7 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-sm hover:shadow transition-all z-10">
                     <Heart size={16} className={favorite ? 'fill-red-500 text-red-500' : 'text-gray-400 hover:text-red-500 transition-colors'} />
                 </button>
             </div>
@@ -89,8 +87,7 @@ export default function Product({ productId, title, price, imageUrl, source, sal
                     <span className="text-sm sm:text-lg font-bold text-red-600 transition-all duration-500">
                         {displayPrice.toLocaleString('ru-RU')} ₽
                     </span>
-                    
-                    <button onClick={handleCartClick} className={`w-7 h-7 flex-shrink-0 rounded-full flex items-center justify-center transition-all ${inCart ? 'bg-red-50 text-red-500 border border-red-200' : 'bg-red-500 text-white hover:bg-red-600 shadow-sm'}`} title={inCart ? 'В корзине' : 'В корзину'}>
+                    <button onClick={handleCartClick} className={`w-7 h-7 flex-shrink-0 rounded-full flex items-center justify-center transition-all ${inCart ? 'bg-red-50 text-red-500 border border-red-200' : 'bg-red-500 text-white hover:bg-red-600 shadow-sm'}`}>
                         <ShoppingCart size={14} className={inCart ? 'fill-current' : ''} />
                     </button>
                 </div>
