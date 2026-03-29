@@ -12,6 +12,7 @@ const safeConvert = (cny: number) => {
 }
 
 // Поиск товаров с Taobao
+// Поиск товаров с Taobao
 async function searchTaobao(keyword: string, page: number): Promise<ProductItem[]> {
     try {
         const result = await searchTaobaoProductsByKeyword(keyword, { page_no: page, page_size: 20 })
@@ -21,8 +22,11 @@ async function searchTaobao(keyword: string, page: number): Promise<ProductItem[
                 const data = obj.data as Record<string, unknown>
                 const items = Array.isArray(data.data) ? data.data : []
                 return items.map((item: TaobaoProductResponse) => {
-                    // ИСПРАВЛЕНИЕ: Убрали / 100. Taobao отдает в юанях!
-                    const rawPrice = String(item.price || item.promotionPrice || '0');
+                    // СЕНЬОРСКИЙ ФИКС: Используем каст к any, чтобы TS не ругался на отсутствие поля в интерфейсе
+                    // Проверяем все возможные поля цены, которые может вернуть API
+                    const itemAny = item as any;
+                    const rawPrice = String(itemAny.price || itemAny.promotionPrice || itemAny.promotion_price || '0');
+                    
                     const priceCny = parseFloat(rawPrice) || 0
                     return {
                         productId: `taobao_${item.itemId}` || `mock_taobao_${Date.now()}`,
