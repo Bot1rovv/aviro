@@ -6,67 +6,68 @@ import Link from 'next/link'
 import { useState } from 'react'
 
 export default function MobileFooter() {
-	const totalFavorites = useFavoritesStore(state => state.totalItems)
-	const totalCartItems = useCartStore(state => state.totalItems)
-	const { isAuthenticated } = useUserStore()
-	const [catalogOpen, setCatalogOpen] = useState(false)
+    const totalFavorites = useFavoritesStore(state => state.totalItems)
+    const totalCartItems = useCartStore(state => state.totalItems)
+    const { isAuthenticated } = useUserStore()
+    const [catalogOpen, setCatalogOpen] = useState(false)
 
-	const openCatalog = () => setCatalogOpen(true)
-	const closeCatalog = () => setCatalogOpen(false)
+    const openCatalog = () => setCatalogOpen(true)
+    const closeCatalog = () => setCatalogOpen(false)
 
-	return (
-		<>
-			<footer className="fixed bottom-0 z-5 w-screen h-auto lg:hidden bg-white px-0.5 py-2.5 shadow-sm border-t border-black/10">
-				<nav className=" grid grid-cols-5 items-center justify-between gap-0.5">
-					{MobileFooterData.map(item => {
-						const isFavorites = item.title === 'Избранное'
-						const isCart = item.title === 'Корзина'
-						// Динамически определяем ссылку для пункта "Профиль"
-						const link = item.title === 'Профиль' ? (isAuthenticated ? item.link : '/login') : item.link
+    return (
+        <>
+            <footer className="fixed bottom-0 left-0 right-0 z-50 w-full h-auto lg:hidden bg-white pt-2 pb-6 px-1 shadow-[0_-2px_10px_rgba(0,0,0,0.05)] border-t border-gray-200">
+                <nav className="grid grid-cols-4 items-center w-full">
+                    {MobileFooterData.map(item => {
+                        const isFavorites = item.title === 'Избранное'
+                        const isCart = item.title === 'Корзина'
+                        const link = item.title === 'Профиль' ? (isAuthenticated ? item.link : '/login') : item.link
 
-						// Для каталога используем кнопку, открывающую модальное окно
-						if (item.title === 'Каталог') {
-							return (
-								<button
-									key={item.title}
-									onClick={openCatalog}
-									className="flex items-center flex-col gap-0.5 transition-colors duration-300 focus:text-amber-500 text-xs relative"
-								>
-									<div className="relative">{<item.icon />}</div>
-									{item.title}
-								</button>
-							)
-						}
+                        // Общие классы для ссылок и кнопок (выравнивание по центру внутри ячейки сетки)
+                        const baseItemClasses = "flex flex-col items-center justify-center gap-1 w-full transition-colors duration-200 text-[10px] text-gray-500 hover:text-red-500 focus:text-red-500"
 
-						return (
-							<Link
-								key={item.title}
-								href={link}
-								className="flex items-center flex-col gap-0.5 transition-colors duration-300 focus:text-amber-500 text-xs relative"
-							>
-								<div className="relative">
-									{<item.icon />}
-									{isFavorites && totalFavorites > 0 && (
-										<span className="absolute -top-2 -right-2 bg-red-500 text-xs text-white rounded-full w-4 h-4 flex items-center justify-center">
-											{totalFavorites > 9 ? '9+' : totalFavorites}
-										</span>
-									)}
-									{isCart && totalCartItems > 0 && (
-										<span className="absolute -top-2 -right-2 bg-red-500 text-xs text-white rounded-full w-4 h-4 flex items-center justify-center">
-											{totalCartItems > 9 ? '9+' : totalCartItems}
-										</span>
-									)}
-								</div>
-								{item.title}
-							</Link>
-						)
-					})}
-				</nav>
-			</footer>
-			<CatalogModal
-				isOpen={catalogOpen}
-				onClose={closeCatalog}
-			/>
-		</>
-	)
+                        if (item.title === 'Каталог') {
+                            return (
+                                <button
+                                    key={item.title}
+                                    onClick={openCatalog}
+                                    className={baseItemClasses}
+                                >
+                                    <div className="relative text-xl">{<item.icon />}</div>
+                                    <span>{item.title}</span>
+                                </button>
+                            )
+                        }
+
+                        return (
+                            <Link
+                                key={item.title}
+                                href={link}
+                                className={baseItemClasses}
+                            >
+                                <div className="relative text-xl">
+                                    {<item.icon />}
+                                    {isFavorites && totalFavorites > 0 && (
+                                        <span className="absolute -top-1 -right-2 bg-red-500 text-[10px] font-bold text-white rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
+                                            {totalFavorites > 99 ? '99+' : totalFavorites}
+                                        </span>
+                                    )}
+                                    {isCart && totalCartItems > 0 && (
+                                        <span className="absolute -top-1 -right-2 bg-red-500 text-[10px] font-bold text-white rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
+                                            {totalCartItems > 99 ? '99+' : totalCartItems}
+                                        </span>
+                                    )}
+                                </div>
+                                <span>{item.title}</span>
+                            </Link>
+                        )
+                    })}
+                </nav>
+            </footer>
+            <CatalogModal
+                isOpen={catalogOpen}
+                onClose={closeCatalog}
+            />
+        </>
+    )
 }

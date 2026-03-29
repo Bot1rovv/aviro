@@ -3,17 +3,16 @@
 import { Button, QuantitySelector } from '@/components/ui'
 import { useFavorites } from '@/hooks'
 import { useCartStore } from '@/lib/store'
-import { useUserStore } from '@/lib/store/user'
 import { getColorHex, normalizeColor } from '@/lib/utils/color'
 import { normalizeImageUrl } from '@/lib/utils/utils'
 import { ProductDetail } from '@/types/product'
-import { ArrowLeft, Check, CircleCheckBig, Heart, PackageCheck, ShoppingBag, Star } from 'lucide-react'
+// ДОБАВЛЕНА Star в список импортов ниже
+import { ArrowLeft, Check, Heart, ShoppingBag, Star } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { toast } from 'sonner'
 
-// Хук для определения медиа-запроса с использованием useSyncExternalStore
 function useMediaQuery(query: string): boolean {
 	const subscribe = useCallback(
 		(callback: () => void) => {
@@ -24,12 +23,9 @@ function useMediaQuery(query: string): boolean {
 		[query]
 	)
 
-	const getSnapshot = () => window.matchMedia(query).matches
-
-	return useSyncExternalStore(subscribe, getSnapshot, () => false)
+	return useSyncExternalStore(subscribe, () => window.matchMedia(query).matches, () => false)
 }
 
-// Хелпер для получения валидного изображения (не пустого)
 function getValidImage(img: string | undefined | null): string {
 	if (img && img.trim() !== '') {
 		return normalizeImageUrl(img.trim())
@@ -37,54 +33,57 @@ function getValidImage(img: string | undefined | null): string {
 	return '/no-image.jpg'
 }
 
-type MediaItem = { type: 'image'; url: string } | { type: 'video'; url: string; poster?: string }
-
-// Извлекает числовое значение размера из строки (первое найденное число)
-function extractNumericSize(size: string): string {
-	// Ищем последовательность цифр
-	const match = size.match(/\d+/)
-	if (match) {
-		return match[0]
-	}
-	// Если чисел нет, возвращаем первую строку без лишнего текста
-	const firstLine = size.split('\n')[0].trim()
-	if (firstLine.length > 10) {
-		return firstLine.substring(0, 10) + '...'
-	}
-	return firstLine
+function getValidVideo(url: string | undefined | null): string {
+	if (!url) return ''
+	const trimmed = url.trim()
+	if (!trimmed) return ''
+	if (trimmed.startsWith('//')) return `https:${trimmed}`
+	return trimmed
 }
 
-// Нормализует название цвета: удаляет скобки, оттенки, фильтрует некорректные значения, переводит, приводит к синонимам
+type MediaItem =
+	| {
+			type: 'image'
+			url: string
+	  }
+	| {
+			type: 'video'
+			url: string
+			poster: string
+	  }
 
-// Нормализует размер: удаляет скобки, суффиксы, стоп-слова, приводит к единому формату (число или буквенный размер)
+function extractNumericSize(size: string): string {
+	const match = size.match(/\d+/)
+	if (match) return match[0]
+
+	const firstLine = size.split('\n')[0].trim()
+	return firstLine.length > 10 ? `${firstLine.substring(0, 10)}...` : firstLine
+}
+
 function normalizeSize(size: string): string {
 	if (!size) return ''
+
 	let cleaned = size.trim()
-	// Удаляем все скобки и их содержимое (круглые, квадратные, китайские)
 	cleaned = cleaned.replace(/[()【】\[\]]/g, ' ').trim()
-	// Удаляем суффиксы типа EU, US, UK, CM, см (после числа)
 	cleaned = cleaned.replace(/\s*(EU|US|UK|EUR|CM|см)\b/gi, '').trim()
-	// Удаляем стоп-слова (размер, код, г, g, см, sm) в начале или конце
 	cleaned = cleaned.replace(/^(размер|код|г|g|см|sm)\s*/gi, '').trim()
 	cleaned = cleaned.replace(/\s*(размер|код|г|g|см|sm)$/gi, '').trim()
-	// Заменяем запятую на точку для десятичных чисел
 	cleaned = cleaned.replace(/,/g, '.')
-	// Разделяем по запятой, дефису, пробелу
+
 	const parts = cleaned.split(/[,\-\s]+/)
-	// Ищем первую значимую часть
 	let significantPart = ''
+
 	for (const part of parts) {
 		if (!part) continue
-		// Пропускаем пустые и стоп-слова
 		if (/^(размер|код|г|g|см|sm)$/i.test(part)) continue
 		significantPart = part
 		break
 	}
+
 	if (!significantPart) return ''
-	cleaned = significantPart
-	// Приводим к нижнему регистру для сравнения
-	const lower = cleaned.toLowerCase()
-	// Маппинг русских и английских вариантов (точные совпадения)
+
+	const lower = significantPart.toLowerCase()
+
 	const sizeMap: Record<string, string> = {
 		xs: 'XS',
 		s: 'S',
@@ -108,29 +107,20 @@ function normalizeSize(size: string): string {
 		'9': '9',
 		'10': '10'
 	}
-	// Проверяем точное совпадение
-	if (sizeMap[lower]) {
-		return sizeMap[lower]
-	}
-	// Проверяем, содержит ли число (включая дробное)
-	const numericMatch = cleaned.match(/^\d*\.?\d+/)
+
+	if (sizeMap[lower]) return sizeMap[lower]
+
+	const numericMatch = significantPart.match(/^\d*\.?\d+/)
 	if (numericMatch) {
-		let num = numericMatch[0]
-		if (num.includes('.')) {
-			num = parseFloat(num).toString()
-		}
-		return num
+		return numericMatch[0].includes('.') ? parseFloat(numericMatch[0]).toString() : numericMatch[0]
 	}
-	// Проверяем, содержит ли буквенные размеры (S, M, L и т.д.)
-	const letterMatch = cleaned.match(/^(xs|s|m|l|xl|xxl|xxxl)/i)
-	if (letterMatch) {
-		return letterMatch[0].toUpperCase()
-	}
-	// Если ничего не найдено, возвращаем в верхнем регистре
-	return cleaned.toUpperCase()
+
+	const letterMatch = significantPart.match(/^(xs|s|m|l|xl|xxl|xxxl)/i)
+	if (letterMatch) return letterMatch[0].toUpperCase()
+
+	return significantPart.toUpperCase()
 }
 
-// Функция для записи в историю
 async function addToHistory(action: string, productId?: string, productTitle?: string, productPrice?: string, productImage?: string) {
 	try {
 		await fetch('/api/user/history', {
@@ -155,25 +145,35 @@ interface ProductClientProps {
 }
 
 export function ProductClient({ product, productId }: ProductClientProps) {
+	const isMobile = useMediaQuery('(max-width: 767px)')
 	const [selectedImage, setSelectedImage] = useState(0)
-	const { user } = useUserStore()
+	const [basePrice, setBasePrice] = useState(product.price)
+	const [videoError, setVideoError] = useState(false)
 	const hasRecordedView = useRef(false)
 
-	// Запись просмотра товара в историю
+	useEffect(() => {
+		if (typeof window !== 'undefined') {
+			const params = new URLSearchParams(window.location.search)
+			const passedPrice = params.get('p')
+			if (passedPrice) {
+				setBasePrice(parseInt(passedPrice, 10))
+			}
+		}
+	}, [])
+
 	useEffect(() => {
 		if (productId && product && !hasRecordedView.current) {
-			addToHistory('view_product', productId, product.title, product.price.toString(), product.image)
+			addToHistory('view_product', productId, product.title, basePrice.toString(), product.image)
 			hasRecordedView.current = true
 		}
-	}, [productId, product])
+	}, [productId, product, basePrice])
 
-	// Извлекаем уникальные цвета, размеры и другие атрибуты только из SKU с нормализацией
 	const { colors, sizes, colorKey, sizeKey, otherAttributes, colorImages } = useMemo(() => {
 		const skuOptions = product.skuOptions || []
-		const colorMap = new Map<string, string>() // нормализованный -> оригинальный
-		const sizeMap = new Map<string, string>() // нормализованный -> оригинальный
-		const otherAttributesMap = new Map<string, Set<string>>() // ключ -> множество значений
-		const colorImageMap = new Map<string, string>() // оригинальный цвет -> изображение
+		const colorMap = new Map<string, string>()
+		const sizeMap = new Map<string, string>()
+		const otherAttributesMap = new Map<string, Set<string>>()
+		const colorImageMap = new Map<string, string>()
 		let foundColorKey = 'Color'
 		let foundSizeKey = 'Size'
 
@@ -181,74 +181,43 @@ export function ProductClient({ product, productId }: ProductClientProps) {
 			Object.entries(sku.attributes).forEach(([key, val]) => {
 				const value = val as string
 				const keyLower = key.toLowerCase()
+
 				if (keyLower.includes('color') || keyLower.includes('颜色') || keyLower.includes('цвет')) {
 					const normalized = normalizeColor(value)
-					if (!colorMap.has(normalized)) {
-						colorMap.set(normalized, value)
-					}
+					if (!colorMap.has(normalized)) colorMap.set(normalized, value)
 					foundColorKey = key
-					// Сохраняем изображение для этого цвета (если есть)
-					if (sku.image && !colorImageMap.has(value)) {
-						colorImageMap.set(value, sku.image)
-					}
+					if (sku.image && !colorImageMap.has(value)) colorImageMap.set(value, sku.image)
 				} else if (keyLower.includes('size') || keyLower.includes('尺码') || keyLower.includes('размер')) {
 					const normalized = normalizeSize(value)
-					if (!sizeMap.has(normalized)) {
-						sizeMap.set(normalized, value)
-					}
+					if (!sizeMap.has(normalized)) sizeMap.set(normalized, value)
 					foundSizeKey = key
 				} else {
-					// Другие атрибуты
-					if (!otherAttributesMap.has(key)) {
-						otherAttributesMap.set(key, new Set())
-					}
+					if (!otherAttributesMap.has(key)) otherAttributesMap.set(key, new Set())
 					otherAttributesMap.get(key)!.add(value)
 				}
 			})
 		})
 
-		// Преобразуем otherAttributesMap в массив объектов
 		const otherAttributes = Array.from(otherAttributesMap.entries()).map(([key, valuesSet]) => ({
 			key,
 			values: Array.from(valuesSet)
 		}))
 
-		// Отладочный вывод
-		if (process.env.NODE_ENV === 'development') {
-			console.log('Normalized colors:', Array.from(colorMap.entries()))
-			console.log('Normalized sizes:', Array.from(sizeMap.entries()))
-			console.log('Original colors:', Array.from(colorMap.values()))
-			console.log('Original sizes:', Array.from(sizeMap.values()))
-			console.log('Other attributes:', otherAttributes)
-			// Отладка для 1688: выводим все изображения SKU
-			console.log(
-				'SKU images (1688 debug):',
-				skuOptions.map(sku => ({ skuId: sku.skuId, image: sku.image, attrs: sku.attributes }))
-			)
-			console.log('Color images map:', Object.fromEntries(colorImageMap))
-		}
-
 		return {
-			colors: Array.from(colorMap.values()), // оригинальные значения
-			sizes: Array.from(sizeMap.values()), // оригинальные значения
+			colors: Array.from(colorMap.values()),
+			sizes: Array.from(sizeMap.values()),
 			colorKey: foundColorKey,
 			sizeKey: foundSizeKey,
 			otherAttributes,
-			colorImages: Object.fromEntries(colorImageMap) // цвет -> изображение
+			colorImages: Object.fromEntries(colorImageMap)
 		}
 	}, [product.skuOptions])
 
-	// Выбранные цвет и размер
 	const [selectedColor, setSelectedColor] = useState<string>('')
 	const [selectedSize, setSelectedSize] = useState<string>('')
-
-	// Выбранные другие атрибуты
 	const [selectedOtherAttributes, setSelectedOtherAttributes] = useState<Record<string, string>>({})
-
-	// Количество товара
 	const [quantity, setQuantity] = useState(1)
 
-	// Функция для обновления выбранного значения атрибута
 	const handleSelectOtherAttribute = (key: string, value: string) => {
 		setSelectedOtherAttributes(prev => ({
 			...prev,
@@ -256,36 +225,34 @@ export function ProductClient({ product, productId }: ProductClientProps) {
 		}))
 	}
 
-	// Текущий выбранный SKU
 	const selectedSku = useMemo(() => {
 		if (!product.skuOptions?.length) return null
+
 		return (
 			product.skuOptions.find(sku => {
 				const attrs = sku.attributes
-				// Проверка цвета
+
 				const colorMatch = !selectedColor || attrs[colorKey] === selectedColor
-				// Проверка размера
 				const sizeMatch = !selectedSize || attrs[sizeKey] === selectedSize
-				// Проверка других атрибутов
-				const otherMatch = otherAttributes.every(attr => !selectedOtherAttributes[attr.key] || attrs[attr.key] === selectedOtherAttributes[attr.key])
+				const otherMatch = otherAttributes.every(
+					attr => !selectedOtherAttributes[attr.key] || attrs[attr.key] === selectedOtherAttributes[attr.key]
+				)
+
 				return colorMatch && sizeMatch && otherMatch
 			}) || null
 		)
 	}, [product.skuOptions, selectedColor, selectedSize, colorKey, sizeKey, otherAttributes, selectedOtherAttributes])
 
-	// Цена выбранного SKU
-	const currentPrice = selectedSku?.price || product.price
+	const currentPrice = selectedSku?.price || basePrice
 	const currentStock = selectedSku?.stock || 0
 
-	// Эффект для сброса выбранного изображения при изменении SKU
 	useEffect(() => {
 		if (selectedImage !== 0) {
-			// Асинхронный сброс, чтобы избежать предупреждения о синхронном setState
 			requestAnimationFrame(() => setSelectedImage(0))
 		}
-	}, [selectedSku]) // Убрали selectedImage из зависимостей
+		setVideoError(false)
+	}, [selectedSku])
 
-	// Объединяем изображения и видео в единый массив медиа-элементов
 	const mediaItems = useMemo(() => {
 		const baseImages = product.images || []
 		const descImages: string[] = []
@@ -293,38 +260,37 @@ export function ProductClient({ product, productId }: ProductClientProps) {
 		if (product.descriptionHtml) {
 			const imgRegex = /<img[^>]+src=["']([^"']+)["']/gi
 			const matches = [...product.descriptionHtml.matchAll(imgRegex)]
-			const extracted = matches.map(m => m[1]).filter(Boolean)
-			descImages.push(...extracted)
+			descImages.push(...matches.map(m => m[1]).filter(Boolean))
 		}
 
-		// Убираем дубликаты и объединяем изображения
 		const combinedImages = [...baseImages]
+
 		descImages.forEach(img => {
-			if (!combinedImages.includes(img)) {
-				combinedImages.push(img)
-			}
+			if (!combinedImages.includes(img)) combinedImages.push(img)
 		})
 
-		// Добавляем изображение выбранного SKU, если оно есть и не дублируется
 		const skuImage = selectedSku?.image
 		if (skuImage && !combinedImages.includes(skuImage)) {
 			combinedImages.unshift(skuImage)
 		}
 
-		// Если есть видео — оно первое, затем все изображения
+		const normalizedImages = combinedImages.map(getValidImage).filter(Boolean)
+		const fallbackPoster = getValidImage(skuImage || product.image || normalizedImages[0] || '/no-image.jpg')
+
 		const items: MediaItem[] = []
 
 		if (product.videos && product.videos.length > 0) {
-			// Добавляем видео первым с placeholder = product.image
-			items.push({
-				type: 'video',
-				url: product.videos[0],
-				poster: product.image
-			})
+			const videoUrl = getValidVideo(product.videos[0])
+			if (videoUrl) {
+				items.push({
+					type: 'video',
+					url: videoUrl,
+					poster: fallbackPoster
+				})
+			}
 		}
 
-		// Добавляем все изображения
-		combinedImages.forEach(url => {
+		normalizedImages.forEach(url => {
 			items.push({
 				type: 'image',
 				url
@@ -334,7 +300,10 @@ export function ProductClient({ product, productId }: ProductClientProps) {
 		return items
 	}, [product.images, product.descriptionHtml, selectedSku, product.videos, product.image])
 
-	// Корзина
+	const activeMedia = mediaItems[selectedImage]
+	const videoPoster =
+		activeMedia && activeMedia.type === 'video' ? activeMedia.poster : getValidImage(selectedSku?.image || product.image)
+
 	const { addItem, removeItem, items } = useCartStore()
 	const isInCart = items.some(
 		item =>
@@ -366,7 +335,6 @@ export function ProductClient({ product, productId }: ProductClientProps) {
 		}
 	}
 
-	// Избранное
 	const { isFavorite, addFavorite, removeFavorite } = useFavorites()
 	const isFav = isFavorite(productId)
 
@@ -390,43 +358,47 @@ export function ProductClient({ product, productId }: ProductClientProps) {
 		poizon: 'bg-green-500'
 	}
 
-	const displayTitle = product.title
-
 	return (
-		<div className="container mx-auto px-4 py-8">
-			<Link
-				href="/"
-				className="flex items-center gap-2 text-blue-600 mb-4 hover:underline"
-			>
+		<div className="container mx-auto px-4 py-8 pb-28 md:pb-8">
+			<Link href="/" className="mb-4 flex items-center gap-2 text-blue-600 hover:underline">
 				<ArrowLeft size={20} />
 				<span>На главную</span>
 			</Link>
 
-			<div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-				{/* Галерея изображений и видео */}
+			<div className="grid grid-cols-1 gap-8 md:grid-cols-2">
 				<div className="space-y-4">
-					<div className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden">
-						{mediaItems.length > 0 ? (
-							mediaItems[selectedImage].type === 'video' ? (
-								<video
-									controls
-									className="w-full h-full object-cover"
-									preload="metadata"
-									poster={mediaItems[selectedImage].poster || product.image}
-									key={mediaItems[selectedImage].url}
-								>
-									<source
-										src={mediaItems[selectedImage].url}
-										type="video/mp4"
+					<div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-lg bg-black">
+						{activeMedia ? (
+							activeMedia.type === 'video' ? (
+								videoError ? (
+									<Image
+										src={videoPoster}
+										alt={product.title}
+										fill
+										className="object-contain bg-gray-100"
+										sizes="(max-width: 768px) 100vw, 50vw"
+										priority
 									/>
-									Ваш браузер не поддерживает видео тег.
-								</video>
+								) : (
+									<video
+										key={activeMedia.url}
+										controls
+										playsInline
+										preload="none"
+										poster={videoPoster}
+										className="h-full w-full object-contain"
+										onError={() => setVideoError(true)}
+									>
+										<source src={activeMedia.url} type="video/mp4" />
+										Ваш браузер не поддерживает видео.
+									</video>
+								)
 							) : (
 								<Image
-									src={getValidImage(mediaItems[selectedImage].url)}
+									src={getValidImage(activeMedia.url)}
 									alt={product.title}
 									fill
-									className="object-cover"
+									className="object-cover bg-gray-100"
 									sizes="(max-width: 768px) 100vw, 50vw"
 									priority
 								/>
@@ -436,48 +408,50 @@ export function ProductClient({ product, productId }: ProductClientProps) {
 								src={getValidImage(product.image)}
 								alt={product.title}
 								fill
-								className="object-cover"
+								className="object-cover bg-gray-100"
 								sizes="(max-width: 768px) 100vw, 50vw"
 								priority
 							/>
 						)}
+
 						{product.source && (
-							<span className={`absolute top-4 right-4 px-3 py-1 text-sm text-white rounded ${sourceColors[product.source]}`}>
+							<span className={`absolute right-4 top-4 rounded px-3 py-1 text-sm font-bold text-white ${sourceColors[product.source]}`}>
 								{product.source.toUpperCase()}
 							</span>
 						)}
 					</div>
+
 					{mediaItems.length > 1 && (
-						<div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
+						<div className="scrollbar-none flex gap-2 overflow-x-auto pb-2">
 							{mediaItems.map((item, idx) => (
 								<button
-									key={idx}
-									onClick={() => setSelectedImage(idx)}
-									className={`relative w-20 h-20 rounded-md overflow-hidden border-2 flex-shrink-0 ${
-										idx === selectedImage ? 'border-blue-500' : 'border-transparent hover:border-gray-300'
+									key={`${item.type}-${idx}`}
+									onClick={() => {
+										setSelectedImage(idx)
+										setVideoError(false)
+									}}
+									className={`relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-md transition-all ${
+										idx === selectedImage ? 'ring-2 ring-blue-500' : 'ring-1 ring-gray-200 hover:ring-gray-300'
 									}`}
-									title={item.type === 'video' ? 'Видео' : `Изображение ${idx + 1}`}
 								>
 									{item.type === 'video' ? (
-										<>
+										<div className="relative flex h-full w-full items-center justify-center bg-gray-900">
 											<Image
-												src={getValidImage(item.poster || product.image)}
+												src={item.poster}
 												alt="Превью видео"
 												fill
-												className="object-cover"
+												className="object-cover opacity-70"
 												sizes="80px"
 												loading="lazy"
 											/>
-											<div className="absolute inset-0 flex items-center justify-center bg-black/30">
-												<svg
-													className="w-8 h-8 text-white"
-													fill="currentColor"
-													viewBox="0 0 24 24"
-												>
-													<path d="M8 5v14l11-7z" />
-												</svg>
+											<div className="absolute inset-0 flex items-center justify-center">
+												<div className="rounded-full bg-black/60 p-2">
+													<svg className="ml-0.5 h-4 w-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+														<path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+													</svg>
+												</div>
 											</div>
-										</>
+										</div>
 									) : (
 										<Image
 											src={getValidImage(item.url)}
@@ -494,137 +468,75 @@ export function ProductClient({ product, productId }: ProductClientProps) {
 					)}
 				</div>
 
-				{/* Информация о товаре */}
 				<div className="space-y-6">
-					<div>
-						<h1 className="text-md lg:text-2xl font-bold text-gray-900 mb-2">{displayTitle}</h1>
-					</div>
+					<h1 className="text-lg font-bold leading-tight text-gray-900 md:text-2xl">{product.title}</h1>
 
 					{product.sales !== undefined && <p className="text-sm text-gray-500">Продано: {product.sales.toLocaleString()}</p>}
 
-					{/* Месячные продажи и повторные покупки */}
-					{(product.monthlySales !== undefined || product.repeatPurchasePercent !== undefined) && (
-						<div className="flex flex-col gap-1 text-sm">
-							{product.monthlySales !== undefined && (
-								<p className="text-gray-600">
-									Месячные продажи: <span className="font-medium">{product.monthlySales.toLocaleString()}</span>
-								</p>
-							)}
-							{product.repeatPurchasePercent !== undefined && (
-								<p className="text-gray-600">
-									Процент повторных покупок составляет <span className="font-medium">{product.repeatPurchasePercent.toFixed(2)}%</span>
-								</p>
-							)}
-						</div>
-					)}
-
-					{/* Рейтинг продавца */}
-					{product.sellerRating && (
-						<div className="flex items-center gap-2 text-sm">
-							<span className="text-gray-600">Рейтинг продавца:</span>
-							<div className="flex items-center gap-1">
-								<Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-								<span className="font-medium">{product.sellerRating.overall.toFixed(1)}</span>
-							</div>
-							{product.sellerRating.compositeService !== undefined && (
-								<span className="text-gray-400 text-xs">(сервис: {product.sellerRating.compositeService.toFixed(1)})</span>
-							)}
-						</div>
-					)}
-
-					{/* Цены за количество (для 1688) */}
-					{product.priceRanges && product.priceRanges.length > 0 && (
-						<div className="border rounded-lg overflow-hidden">
-							<table className="w-full text-sm">
-								<thead className="bg-gray-100">
-									<tr>
-										<th className="px-3 py-2 text-left font-medium text-gray-700">Количество:</th>
-										{product.priceRanges.map((range, idx) => (
-											<th
-												key={idx}
-												className="px-3 py-2 text-center font-medium text-gray-700"
-											>
-												{range.minQuantity}+ шт
-											</th>
-										))}
-									</tr>
-								</thead>
-								<tbody>
-									<tr className="bg-gray-50">
-										<td className="px-3 py-2 text-gray-600">Цена:</td>
-										{product.priceRanges.map((range, idx) => (
-											<td
-												key={idx}
-												className="px-3 py-2 text-center font-medium"
-											>
-												<span className="text-green-600">{range.promotionPrice?.toLocaleString() || range.price.toLocaleString()} ₽</span>
-											</td>
-										))}
-									</tr>
-								</tbody>
-							</table>
-						</div>
-					)}
-
 					<div className="flex items-baseline gap-4">
-						<span className="text-3xl font-bold text-red-500">{currentPrice.toLocaleString()} ₽</span>
-						{product.originalPrice && product.originalPrice > product.price && (
-							<span className="text-lg text-gray-400 line-through">{product.originalPrice.toLocaleString()} ₽</span>
+						<span className="text-4xl font-bold text-red-600">{currentPrice.toLocaleString()} ₽</span>
+						{product.originalPrice && product.originalPrice > basePrice && (
+							<span className="text-xl text-gray-400 line-through">{product.originalPrice.toLocaleString()} ₽</span>
 						)}
 					</div>
 
-					{/* Выбор цвета */}
+					{product.sellerRating && (
+						<div className="flex items-center gap-2 text-sm text-gray-600">
+							<span>Рейтинг продавца:</span>
+							<div className="flex items-center gap-1">
+								<Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+								<span className="font-medium text-gray-900">{product.sellerRating.overall.toFixed(1)}</span>
+							</div>
+						</div>
+					)}
+
 					{colors.length > 0 && (
 						<div className="space-y-2">
 							<label className="block text-sm font-medium text-gray-700">
 								{colorKey}
-								{selectedColor && <span className="ml-2 text-gray-900 font-medium">({selectedColor})</span>}
+								{selectedColor && <span className="ml-2 font-bold text-gray-900">({selectedColor})</span>}
 							</label>
+
 							<div className="flex flex-wrap gap-3">
 								{colors.map(color => {
-									const colorHex = getColorHex(color)
 									const isSelected = selectedColor === color
 									const colorImage = colorImages[color]
 
 									if (colorImage) {
-										// Показываем картинку из SKU
 										return (
 											<button
 												key={color}
 												onClick={() => setSelectedColor(color)}
-												className={`relative w-10 h-10 md:w-12 md:h-12 lg:w-14 lg:h-14 rounded-md border-2 overflow-hidden flex items-center justify-center transition-all ${
-													isSelected ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-300 hover:border-gray-400'
+												className={`relative h-12 w-12 overflow-hidden rounded-md border-2 ${
+													isSelected ? 'border-red-500 ring-2 ring-red-200' : 'border-gray-200 hover:border-gray-400'
 												}`}
-												title={color}
 											>
 												<Image
 													src={getValidImage(colorImage)}
 													alt={color}
-													width={56}
-													height={56}
-													className="object-cover w-full h-full"
+													width={48}
+													height={48}
+													className="h-full w-full object-cover"
 												/>
 												{isSelected && (
-													<div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-														<Check className="w-5 h-5 text-white stroke-[3]" />
+													<div className="absolute inset-0 flex items-center justify-center bg-black/20">
+														<Check className="h-5 w-5 stroke-[3] text-white" />
 													</div>
 												)}
 											</button>
 										)
 									}
 
-									// Fallback: круглая кнопка с цветом
 									return (
 										<button
 											key={color}
 											onClick={() => setSelectedColor(color)}
-											className={`relative w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all ${
-												isSelected ? 'border-blue-500' : 'border-gray-300 hover:border-gray-400'
+											className={`relative h-10 w-10 rounded-full border-2 ${
+												isSelected ? 'border-red-500' : 'border-gray-300'
 											}`}
-											style={{ backgroundColor: colorHex }}
-											title={color}
+											style={{ backgroundColor: getColorHex(color) }}
 										>
-											{isSelected && <Check className="w-5 h-5 text-white stroke-[3]" />}
+											{isSelected && <Check className="h-5 w-5 stroke-[3] text-white" />}
 										</button>
 									)
 								})}
@@ -632,7 +544,6 @@ export function ProductClient({ product, productId }: ProductClientProps) {
 						</div>
 					)}
 
-					{/* Выбор размера */}
 					{sizes.length > 0 && (
 						<div className="space-y-2">
 							<label className="block text-sm font-medium text-gray-700">{sizeKey}</label>
@@ -641,10 +552,11 @@ export function ProductClient({ product, productId }: ProductClientProps) {
 									<button
 										key={size}
 										onClick={() => setSelectedSize(size)}
-										className={`px-4 py-2 rounded-lg border-2 transition-all ${
-											selectedSize === size ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 hover:border-gray-300'
+										className={`rounded-md border px-4 py-2 text-sm font-medium transition-all ${
+											selectedSize === size
+												? 'border-red-500 bg-red-50 text-red-600'
+												: 'border-gray-300 text-gray-700 hover:border-gray-400'
 										}`}
-										title={size}
 									>
 										{extractNumericSize(size)}
 									</button>
@@ -653,115 +565,85 @@ export function ProductClient({ product, productId }: ProductClientProps) {
 						</div>
 					)}
 
-					{/* Выбор других атрибутов */}
 					{otherAttributes.map(attr => (
-						<div
-							key={attr.key}
-							className="space-y-2"
-						>
+						<div key={attr.key} className="space-y-2">
 							<label className="block text-sm font-medium text-gray-700">{attr.key}</label>
 							<div className="flex flex-wrap gap-2">
-								{attr.values.map(value => {
-									const isSelected = selectedOtherAttributes[attr.key] === value
-									return (
-										<button
-											key={value}
-											onClick={() => handleSelectOtherAttribute(attr.key, value)}
-											className={`px-4 py-2 rounded-lg border-2 transition-all ${
-												isSelected ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 hover:border-gray-300'
-											}`}
-											title={value}
-										>
-											{value}
-										</button>
-									)
-								})}
+								{attr.values.map(value => (
+									<button
+										key={value}
+										onClick={() => handleSelectOtherAttribute(attr.key, value)}
+										className={`rounded-md border px-4 py-2 text-sm font-medium transition-all ${
+											selectedOtherAttributes[attr.key] === value
+												? 'border-red-500 bg-red-50 text-red-600'
+												: 'border-gray-300 text-gray-700 hover:border-gray-400'
+										}`}
+									>
+										{value}
+									</button>
+								))}
 							</div>
 						</div>
 					))}
 
-					{/* Информация о выбранном SKU */}
-					{selectedSku && (
-						<div className="bg-gray-50 p-3 rounded-lg">
-							<p className="text-sm">
-								{currentStock > 0 ? (
-									<span className="text-green-600">В наличии: {currentStock} шт.</span>
-								) : (
-									<span className="text-red-500">Нет в наличии</span>
-								)}
-							</p>
-						</div>
-					)}
-
-					{/* Выбор количества */}
 					<div className="space-y-2">
 						<label className="block text-sm font-medium text-gray-700">Количество</label>
-						<QuantitySelector
-							value={quantity}
-							onChange={setQuantity}
-							min={1}
-							max={currentStock > 0 ? currentStock : 99}
-						/>
+						<QuantitySelector value={quantity} onChange={setQuantity} min={1} max={currentStock > 0 ? currentStock : 99} />
 					</div>
 
-					<p className="delivery flex items-center gap-2">
-						<PackageCheck />
-						<span className="inline-block bg-green-100 px-3 py-1 rounded-xl text-green-800 text-sm">Доставим за 25+ дней</span>
+					<p className="flex items-center gap-2">
+						<span className="inline-block rounded-md border border-green-200 bg-green-50 px-3 py-1 text-sm font-medium text-green-700">
+							📦 Доставим за 25+ дней
+						</span>
 					</p>
 
-					<div className="flex flex-col md:flex-row gap-2">
-						<Button
-							variant={isInCart ? 'secondary' : 'primary'}
-							onClick={handleCartClick}
-							className={`w-full py-4 text-lg flex items-center justify-center gap-2 ${isInCart ? 'text-amber-600' : ''}`}
-						>
-							{isInCart ? <CircleCheckBig /> : <ShoppingBag />}
-							<span>{isInCart ? 'В корзине' : 'В корзину'}</span>
-						</Button>
-						<Button
-							variant={isFav ? 'secondary' : 'outline'}
-							onClick={handleFavoriteClick}
-							className="w-full py-4 text-lg flex items-center justify-center gap-2"
-						>
-							<Heart className={isFav ? 'fill-red-500 text-red-500' : ''} />
-							<span>{isFav ? 'В избранном' : 'В избранное'}</span>
-						</Button>
-					</div>
-
-					{/* Характеристики */}
 					{product.specifications && Object.keys(product.specifications).length > 0 && (
-						<div className="border-t pt-4">
-							<h3 className="font-semibold mb-3">Характеристики</h3>
-							<dl className="space-y-2">
-								{Object.entries(product.specifications).map(([key, value]) => (
-									<div
-										key={key}
-										className="flex flex-col sm:flex-row sm:justify-between"
-									>
-										<dt className="text-gray-900 font-semibold">{key}</dt>
-										<dd className="font-medium">{String(value)}</dd>
-									</div>
-								))}
-							</dl>
+						<div className="mt-8">
+							<h3 className="mb-4 text-lg font-bold text-gray-900">Характеристики товара</h3>
+							<div className="overflow-hidden rounded-lg border border-gray-200">
+								<table className="w-full text-left text-sm">
+									<tbody>
+										{Object.entries(product.specifications).map(([key, value], index) => (
+											<tr key={key} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
+												<td className="w-1/3 border-r border-gray-200 px-4 py-3 align-top font-medium text-gray-500">{key}</td>
+												<td className="px-4 py-3 align-top text-gray-900">{String(value)}</td>
+											</tr>
+										))}
+									</tbody>
+								</table>
+							</div>
 						</div>
 					)}
+				</div>
+			</div>
 
-					{/* Описание - только для Poizon
-					{product.source === 'poizon' && product.description && (
-						<div className="border-t pt-4">
-							<h3 className="font-semibold mb-2">Описание</h3>
-							<div className="text-gray-600 whitespace-pre-wrap">{product.description}</div>
+			<div
+				className={`fixed bottom-0 left-0 z-50 w-full border-t border-gray-200 bg-white p-3 shadow-[0_-10px_20px_-5px_rgba(0,0,0,0.1)] md:relative md:bottom-auto md:left-auto md:z-auto md:mt-8 md:border-none md:bg-transparent md:p-0 md:shadow-none`}
+			>
+				<div className="mx-auto flex max-w-7xl flex-row gap-3">
+					<Button
+						variant={isInCart ? 'secondary' : 'primary'}
+						onClick={handleCartClick}
+						className={`flex-1 rounded-xl py-4 text-sm transition-all md:text-lg ${
+							isInCart ? 'bg-gray-100 text-gray-700' : 'bg-[#0f6b46] text-white hover:bg-[#0a4e32]'
+						}`}
+					>
+						<div className="flex items-center justify-center gap-2">
+							<ShoppingBag size={20} />
+							<span className="font-bold">{isInCart ? 'В корзине' : 'Купить сейчас'}</span>
 						</div>
-					)} */}
+					</Button>
 
-					{/* Отладочная информация */}
-					{product._debug && (
-						<div className="border-t pt-4 mt-8 bg-gray-50 p-4 rounded-lg">
-							<h3 className="font-semibold mb-2 text-sm text-gray-500">Отладочная информация</h3>
-							<p className="text-xs text-gray-400">Source: {product._debug.source}</p>
-							<pre className="text-xs text-gray-400 overflow-x-auto mt-2">{JSON.stringify(product._debug.rawData, null, 2)}</pre>
+					<Button
+						variant={isFav ? 'secondary' : 'outline'}
+						onClick={handleFavoriteClick}
+						className="w-[64px] rounded-xl border-[#0f6b46] bg-white py-4 text-[#0f6b46] hover:bg-green-50 md:w-auto md:flex-1"
+					>
+						<div className="flex items-center justify-center gap-2">
+							<Heart size={20} className={isFav ? 'fill-red-500 text-red-500' : ''} />
+							{!isMobile && <span className="font-bold">{isFav ? 'В избранном' : 'В избранное'}</span>}
 						</div>
-					)}
+					</Button>
 				</div>
 			</div>
 		</div>
