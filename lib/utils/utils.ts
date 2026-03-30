@@ -25,29 +25,75 @@ export function cn(...classes: (string | number | boolean | undefined | null | R
 }
 
 /**
- * Нормализует URL изображения для Next.js Image.
- * Преобразует протокольно-относительные URL (//example.com) в https://example.com.
- * Оставляет абсолютные URL как есть, а относительные пути (начинающиеся с /) не изменяет.
- * @param url Исходный URL изображения
- * @returns Нормализованный URL, пригодный для Next.js Image
+ * Нормализует URL изображения для Next.js/Image и обычного <img>.
+ * Поддерживает:
+ * - //img.alicdn.com/...
+ * - http://...
+ * - https://...
+ * - /imgextra/...
+ * - imgextra/...
+ * - /bao/uploaded/...
+ * - data:image/...
+ * - локальные /no-image.jpg
  */
 export function normalizeImageUrl(url: string): string {
-	if (!url || typeof url !== 'string') return url
+	if (!url || typeof url !== 'string') return '/no-image.jpg'
 
-	// Убираем пробелы
 	const trimmed = url.trim()
-	if (!trimmed) return trimmed
+	if (!trimmed) return '/no-image.jpg'
 
-	// Если URL начинается с //, добавляем https:
+	// base64 / data uri
+	if (trimmed.startsWith('data:image/')) {
+		return trimmed
+	}
+
+	// protocol-relative
 	if (trimmed.startsWith('//')) {
 		return `https:${trimmed}`
 	}
 
-	// Если URL начинается с http:// или https://, оставляем как есть
+	// absolute
 	if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
 		return trimmed
 	}
 
-	// Относительные пути (например, /no-image.jpg) оставляем как есть
-	return trimmed
+	// локальные public-файлы
+	if (trimmed.startsWith('/no-image') || trimmed.startsWith('/images/') || trimmed.startsWith('/favicons/')) {
+		return trimmed
+	}
+
+	// частые пути Alibaba/Taobao без домена
+	if (trimmed.startsWith('/imgextra/') || trimmed.startsWith('imgextra/')) {
+		return `https://img.alicdn.com/${trimmed.replace(/^\/+/, '')}`
+	}
+
+	if (trimmed.startsWith('/bao/uploaded/') || trimmed.startsWith('bao/uploaded/')) {
+		return `https://img.alicdn.com/${trimmed.replace(/^\/+/, '')}`
+	}
+
+	if (trimmed.startsWith('/uploaded/') || trimmed.startsWith('uploaded/')) {
+		return `https://img.alicdn.com/${trimmed.replace(/^\/+/, '')}`
+	}
+
+	if (trimmed.startsWith('/i') || trimmed.startsWith('i')) {
+		return `https://img.alicdn.com/${trimmed.replace(/^\/+/, '')}`
+	}
+
+	// если пришёл домен без протокола
+	if (
+		trimmed.startsWith('img.alicdn.com/') ||
+		trimmed.startsWith('gview.alicdn.com/') ||
+		trimmed.startsWith('gw.alicdn.com/') ||
+		trimmed.startsWith('img.taobao.com/') ||
+		trimmed.startsWith('img.china.alibaba.com/')
+	) {
+		return `https://${trimmed}`
+	}
+
+	// если это другой относительный путь, не ломаем сайт
+	if (trimmed.startsWith('/')) {
+		return trimmed
+	}
+
+	return `https://${trimmed}`
 }

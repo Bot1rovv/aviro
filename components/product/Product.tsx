@@ -2,6 +2,7 @@
 
 import { SourceBadge } from '@/components/ui'
 import { useCart, useFavorites } from '@/hooks'
+import { normalizeImageUrl } from '@/lib/utils/utils'
 import { ProductItem } from '@/types/product'
 import { Heart, ShoppingCart } from 'lucide-react'
 import Image from 'next/image'
@@ -12,12 +13,6 @@ interface ProductProps extends Omit<ProductItem, 'sales' | 'rating'> {
 	sales?: string | number
 	rating?: string | number
 	shopName?: string
-}
-
-function normalizeImage(url?: string) {
-	if (!url) return '/no-image.jpg'
-	if (url.startsWith('//')) return `https:${url}`
-	return url
 }
 
 export default function Product({
@@ -39,7 +34,12 @@ export default function Product({
 		return parseFloat(String(price).replace(/[^\d.-]/g, '')) || 0
 	}, [price])
 
+	const normalizedImageUrl = useMemo(() => {
+		return normalizeImageUrl(imageUrl || '')
+	}, [imageUrl])
+
 	const [displayPrice, setDisplayPrice] = useState(initialPrice === 0 ? 150 : initialPrice)
+	const [imgError, setImgError] = useState(false)
 
 	useEffect(() => {
 		if (initialPrice > 0 && initialPrice < 40) {
@@ -53,6 +53,10 @@ export default function Product({
 				.catch(() => {})
 		}
 	}, [productId, initialPrice, displayPrice])
+
+	useEffect(() => {
+		setImgError(false)
+	}, [normalizedImageUrl])
 
 	const displaySales = useMemo(() => {
 		if (sales !== undefined && sales !== null && sales !== '') return sales
@@ -75,7 +79,7 @@ export default function Product({
 				productId,
 				title,
 				price: displayPrice.toString(),
-				imageUrl,
+				imageUrl: normalizedImageUrl,
 				source: source || '1688'
 			})
 		}
@@ -90,9 +94,9 @@ export default function Product({
 		} else {
 			addFavorite({
 				productId,
-				title, // ✅ фикс: раньше тут по ошибке цена улетала вместо title
+				title,
 				price: displayPrice.toString(),
-				imageUrl,
+				imageUrl: normalizedImageUrl,
 				source: source || '1688'
 			})
 		}
@@ -102,15 +106,16 @@ export default function Product({
 		<div className="group flex h-full flex-col overflow-hidden rounded-xl border border-gray-100 bg-white transition-all duration-300 hover:border-green-100 hover:shadow-xl active:scale-[0.99]">
 			<div className="relative aspect-square flex-shrink-0 overflow-hidden bg-gray-50">
 				<Link href={`/product/${productId}`} className="block h-full w-full">
-					{imageUrl ? (
+					{!imgError ? (
 						<Image
-							src={normalizeImage(imageUrl)}
+							src={normalizedImageUrl}
 							alt={title || 'Товар'}
 							fill
 							className="object-cover transition-transform duration-500 group-hover:scale-105"
 							sizes="(max-width: 768px) 50vw, 25vw"
 							loading="lazy"
 							unoptimized
+							onError={() => setImgError(true)}
 						/>
 					) : (
 						<div className="flex h-full items-center justify-center text-xs text-gray-400">
@@ -129,7 +134,7 @@ export default function Product({
 					onClick={handleToggleFavorite}
 					className={`absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-sm shadow-sm transition-all active:scale-90 ${
 						favorite
-							? 'bg-red-50 text-red-500 border border-red-100'
+							? 'border border-red-100 bg-red-50 text-red-500'
 							: 'bg-white/90 text-gray-400 hover:text-red-500'
 					}`}
 					aria-label={favorite ? 'Убрать из избранного' : 'Добавить в избранное'}
