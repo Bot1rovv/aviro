@@ -7,10 +7,20 @@ import { Heart } from 'lucide-react'
 export default function FavoritesPage() {
 	const { items, clearFavorites } = useFavoritesStore()
 
+	const favoriteProducts = items.map(item => ({
+		productId: item.productId,
+		title: item.title,
+		price: item.price,
+		imageUrl: item.imageUrl,
+		source: item.source,
+		shopName: '',
+		sales: 0
+	}))
+
 	return (
-		<div className="container">
+		<div className="container mx-auto px-4 py-6">
 			<div className="flex items-center justify-center">
-				<div className=" w-full py-4">
+				<div className="w-full py-4">
 					<PageHeader
 						title="Мой список желаний"
 						actions={
@@ -28,14 +38,14 @@ export default function FavoritesPage() {
 					/>
 
 					{items.length === 0 ? (
-						<div className="bg-gray-100/70 rounded-xl p-10">
+						<div className="rounded-xl bg-gray-100/70 p-10">
 							<EmptyState
 								icon={Heart}
 								title="У вас пока нет избранных товаров"
 							/>
 						</div>
 					) : (
-						<ProductGrid products={items} />
+						<ProductGrid products={favoriteProducts} />
 					)}
 				</div>
 			</div>

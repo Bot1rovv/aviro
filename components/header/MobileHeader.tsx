@@ -4,9 +4,9 @@ import { MobileMenuModal, MobileSearchInput } from '@/components/ui'
 import FullScreenLoader from '@/components/ui/FullScreenLoader/FullScreenLoader'
 import { PagesConfig } from '@/config/pages.config'
 import { useSearch } from '@/hooks'
-import { useCartStore } from '@/lib/store'
+import { useCartStore, useFavoritesStore } from '@/lib/store'
 import type { SearchSource } from '@/types/search'
-import { Menu, ShoppingBag } from 'lucide-react'
+import { Heart, Menu, ShoppingBag } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -20,6 +20,7 @@ export default function MobileHeader() {
     const router = useRouter()
 
     const totalCartItems = useCartStore(state => state.totalItems)
+    const totalFavorites = useFavoritesStore(state => state.totalItems)
 
     const { searchValue, handleChange, handleSearch } = useSearch()
 
@@ -84,6 +85,7 @@ export default function MobileHeader() {
                         >
                             <Menu />
                         </button>
+
                         <Link
                             href={PagesConfig.HOME}
                             className="flex-shrink-0"
@@ -95,14 +97,28 @@ export default function MobileHeader() {
                                 height={100}
                             />
                         </Link>
+
                         <div className="flex items-center gap-3">
+                            <Link
+                                href="/favorites"
+                                className="relative"
+                                aria-label={`Избранное, ${totalFavorites} товаров`}
+                            >
+                                <Heart />
+                                {totalFavorites > 0 && (
+                                    <span className="absolute -top-2 -right-2 bg-[#0f6b46] text-xs text-white rounded-full w-4 h-4 flex items-center justify-center">
+                                        {totalFavorites > 9 ? '9+' : totalFavorites}
+                                    </span>
+                                )}
+                            </Link>
+
                             <Link
                                 href={PagesConfig.CART}
                                 className="relative"
+                                aria-label={`Корзина, ${totalCartItems} товаров`}
                             >
                                 <ShoppingBag />
                                 {totalCartItems > 0 && (
-                                    /* ИЗМЕНЕНО: bg-red-500 -> bg-[#0f6b46] */
                                     <span className="absolute -top-2 -right-2 bg-[#0f6b46] text-xs text-white rounded-full w-4 h-4 flex items-center justify-center">
                                         {totalCartItems > 9 ? '9+' : totalCartItems}
                                     </span>
@@ -110,6 +126,7 @@ export default function MobileHeader() {
                             </Link>
                         </div>
                     </div>
+
                     <MobileSearchInput
                         value={searchValue}
                         onChange={handleChange}
@@ -118,6 +135,7 @@ export default function MobileHeader() {
                         placeholder="Поиск товаров"
                         imageSearchLoading={imageSearchLoading}
                     />
+
                     <input
                         ref={fileInputRef}
                         type="file"
@@ -134,6 +152,7 @@ export default function MobileHeader() {
                     onClose={closeMenu}
                 />
             </Suspense>
+
             <FullScreenLoader isLoading={imageSearchLoading} />
         </>
     )

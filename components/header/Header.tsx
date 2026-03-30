@@ -4,9 +4,10 @@ import FullScreenLoader from '@/components/ui/FullScreenLoader/FullScreenLoader'
 import { PagesConfig } from '@/config/pages.config'
 import { useSearch } from '@/hooks'
 import { useCartStore } from '@/lib/store'
+import { useFavoritesStore } from '@/lib/store' // ✅ ДОБАВИЛ
 import { useUserStore } from '@/lib/store/user'
 import type { SearchSource } from '@/types/search'
-import { LockKeyholeIcon, Search, ShoppingBagIcon, UserIcon } from 'lucide-react'
+import { Heart, LockKeyholeIcon, Search, ShoppingBagIcon, UserIcon } from 'lucide-react' // ✅ ДОБАВИЛ Heart
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
@@ -20,6 +21,7 @@ interface HeaderProps {
 
 export default function Header({ openCart }: HeaderProps) {
     const totalCartItems = useCartStore(state => state.totalItems)
+    const totalFavorites = useFavoritesStore(state => state.totalItems) // ✅ ДОБАВИЛ
     const { user, isAuthenticated } = useUserStore()
 
     const router = useRouter()
@@ -129,6 +131,22 @@ export default function Header({ openCart }: HeaderProps) {
                 )}
 
                 <div className="flex items-center gap-5">
+
+                    {/* ❤️ ИЗБРАННОЕ */}
+                    <Link
+                        href="/favorites"
+                        className="hover:text-orange-500 duration-300 relative cursor-pointer"
+                        aria-label={`Избранное, ${totalFavorites} товаров`}
+                    >
+                        {totalFavorites > 0 && (
+                            <div className="bg-[#0f6b46] text-white rounded-[50%] text-[10px] font-medium flex items-center justify-center absolute top-[-5px] right-[-5px] min-w-[16px]">
+                                <span>{totalFavorites}</span>
+                            </div>
+                        )}
+                        <Heart />
+                    </Link>
+
+                    {/* 🛒 КОРЗИНА */}
                     {openCart ? (
                         <button
                             onClick={handleCartClick}

@@ -11,32 +11,39 @@ interface ProductGridProps {
 	gridClassName?: string
 }
 
-export default function ProductGrid({ products, loading = false, emptyMessage = 'Товары не найдены', gridClassName = '' }: ProductGridProps) {
+export default function ProductGrid({
+	products,
+	loading = false,
+	emptyMessage = 'Товары не найдены',
+	gridClassName = ''
+}: ProductGridProps) {
 	if (loading) {
 		return <LoadingSkeleton type="product" />
 	}
 
+	if (!products || products.length === 0) {
+		return (
+			<div className="col-span-6 text-center py-10">
+				<p className="text-gray-500">{emptyMessage}</p>
+			</div>
+		)
+	}
+
 	return (
-		<>
-			{products.length > 0 ? (
-				<div className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6 gap-2.5 lg:gap-6 ${gridClassName}`}>
-					{products.map((product, index) => (
-						<Product
-							key={product.productId || index}
-							productId={product.productId}
-							title={product.title}
-							price={product.price}
-							imageUrl={product.imageUrl}
-							shopName={product.shopName}
-							source={product.source}
-						/>
-					))}
-				</div>
-			) : (
-				<div className="col-span-6 text-center py-10">
-					<p className="text-gray-500">{emptyMessage}</p>
-				</div>
-			)}
-		</>
+		<div
+			className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6 gap-2.5 lg:gap-6 ${gridClassName}`}
+		>
+			{products.map(product => (
+				<Product
+					key={`${product.productId}-${product.source}`} // 🔥 фикс ключа
+					productId={product.productId}
+					title={product.title}
+					price={product.price}
+					imageUrl={product.imageUrl}
+					shopName={product.shopName}
+					source={product.source}
+				/>
+			))}
+		</div>
 	)
 }
