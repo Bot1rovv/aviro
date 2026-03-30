@@ -70,21 +70,24 @@ export default function SortFilter({ className = '' }: SortFilterProps) {
                 <div className="flex items-center gap-6 overflow-x-auto scrollbar-none whitespace-nowrap">
                     <button 
                         onClick={() => handleSortChange('default')}
-                        className={`text-sm font-medium transition-colors ${sort === 'default' ? 'text-red-500' : 'text-gray-600 hover:text-red-500'}`}
+                        /* ИЗМЕНЕНО: text-red-500 -> text-[#0f6b46] */
+                        className={`text-sm font-medium transition-colors ${sort === 'default' ? 'text-[#0f6b46]' : 'text-gray-600 hover:text-[#0f6b46]'}`}
                     >
                         По умолчанию
                     </button>
                     
                     <button 
                         onClick={() => handleSortChange('price_asc')}
-                        className={`text-sm font-medium flex items-center gap-1 transition-colors ${sort === 'price_asc' ? 'text-red-500' : 'text-gray-600 hover:text-red-500'}`}
+                        /* ИЗМЕНЕНО: text-red-500 -> text-[#0f6b46] */
+                        className={`text-sm font-medium flex items-center gap-1 transition-colors ${sort === 'price_asc' ? 'text-[#0f6b46]' : 'text-gray-600 hover:text-[#0f6b46]'}`}
                     >
                         Цена (по возр.)
                     </button>
 
                     <button 
                         onClick={() => handleSortChange('price_desc')}
-                        className={`text-sm font-medium flex items-center gap-1 transition-colors ${sort === 'price_desc' ? 'text-red-500' : 'text-gray-600 hover:text-red-500'}`}
+                        /* ИЗМЕНЕНО: text-red-500 -> text-[#0f6b46] */
+                        className={`text-sm font-medium flex items-center gap-1 transition-colors ${sort === 'price_desc' ? 'text-[#0f6b46]' : 'text-gray-600 hover:text-[#0f6b46]'}`}
                     >
                         Цена (по убыв.)
                     </button>
@@ -113,7 +116,8 @@ export default function SortFilter({ className = '' }: SortFilterProps) {
                         />
                         <button 
                             onClick={applyPriceFilter}
-                            className="px-3 py-1 bg-red-500 text-white text-xs font-medium rounded hover:bg-red-600 transition-colors"
+                            /* ИЗМЕНЕНО: bg-red-500 -> bg-[#0f6b46], hover:bg-red-600 -> hover:bg-[#0a4e32] */
+                            className="px-3 py-1 bg-[#0f6b46] text-white text-xs font-medium rounded hover:bg-[#0a4e32] transition-colors"
                         >
                             OK
                         </button>

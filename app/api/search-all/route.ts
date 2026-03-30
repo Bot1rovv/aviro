@@ -5,13 +5,17 @@ import type { TaobaoProductResponse } from '@/types/api'
 import { ProductItem } from '@/types/product'
 import { NextRequest, NextResponse } from 'next/server'
 
-// Страховка: если cnyToRub возвращает 0, умножаем по курсу 13.5 жестко
-const safeConvert = (cny: number) => {
-    const rub = cnyToRub(cny);
-    return (rub && rub > 0) ? rub : (cny * 13.5);
+// Пуленепробиваемая конвертация цены
+const safeConvert = (cny: number | null | undefined | typeof NaN) => {
+    if (cny === null || cny === undefined || Number.isNaN(cny)) return 0;
+    try {
+        const rub = cnyToRub(cny);
+        return (rub && rub > 0) ? rub : (cny * 13.5);
+    } catch (e) {
+        return cny * 13.5;
+    }
 }
 
-// Поиск товаров с Taobao
 // Поиск товаров с Taobao
 async function searchTaobao(keyword: string, page: number): Promise<ProductItem[]> {
     try {
@@ -22,12 +26,10 @@ async function searchTaobao(keyword: string, page: number): Promise<ProductItem[
                 const data = obj.data as Record<string, unknown>
                 const items = Array.isArray(data.data) ? data.data : []
                 return items.map((item: TaobaoProductResponse) => {
-                    // СЕНЬОРСКИЙ ФИКС: Используем каст к any, чтобы TS не ругался на отсутствие поля в интерфейсе
-                    // Проверяем все возможные поля цены, которые может вернуть API
                     const itemAny = item as any;
-                    const rawPrice = String(itemAny.price || itemAny.promotionPrice || itemAny.promotion_price || '0');
+                    const rawPrice = String(itemAny.price || itemAny.promotionPrice || itemAny.promotion_price || '0').replace(/[^0-9.]/g, '');
+                    const priceCny = parseFloat(rawPrice) || 0;
                     
-                    const priceCny = parseFloat(rawPrice) || 0
                     return {
                         productId: `taobao_${item.itemId}` || `mock_taobao_${Date.now()}`,
                         title: getTaobaoTitle(item),
@@ -57,7 +59,6 @@ async function search1688(keyword: string, page: number): Promise<ProductItem[]>
                 const data = obj.data as Record<string, unknown>
                 const items = Array.isArray(data.data) ? data.data : []
                 return items.map((item: Record<string, unknown>) => {
-                    // ИСПРАВЛЕНИЕ: Ищем цену во всех возможных полях
                     let price = String(item.price || item.showPrice || item.currentPrice || '0')
                     const priceInfo = item.priceInfo
                     if (priceInfo && typeof priceInfo === 'object') {
@@ -66,9 +67,11 @@ async function search1688(keyword: string, page: number): Promise<ProductItem[]>
                         const match = priceInfo.match(/price[=\s]*(\d+\.?\d*)/i)
                         if (match) price = match[1]
                     }
+                    
+                    price = price.replace(/[^0-9.]/g, '');
+                    const priceCny = parseFloat(price) || 0;
                     const title = String(item.subjectTrans || item.subject || '')
                     const imageUrl = String(item.imageUrl || item.whiteImage || '')
-                    const priceCny = parseFloat(price) || 0
 
                     return {
                         productId: `1688_${item.offerId}` || `mock_1688_${Date.now()}`,
@@ -103,7 +106,6 @@ async function searchPoizon(keyword: string, page: number): Promise<ProductItem[
                 const data = obj.data as Record<string, unknown>
                 const items = Array.isArray(data.spuList) ? data.spuList : []
                 return items.map((item: Record<string, unknown>) => {
-                    // Poizon отдает в центах, тут деление оставляем
                     const priceCny = Number(item.authPrice || item.price || 0) / 100
                     return {
                         productId: `poizon_${item.dwSpuId}` || `mock_poizon_${Date.now()}`,
@@ -126,7 +128,8 @@ async function searchPoizon(keyword: string, page: number): Promise<ProductItem[
 
 export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
-    const keyword = searchParams.get('keyword') || 'товары'
+    // ИСПРАВЛЕНИЕ: Теперь бэкенд ищет и "q" и "keyword"
+    const keyword = searchParams.get('q') || searchParams.get('keyword') || searchParams.get('query') || 'товары'
     const page = parseInt(searchParams.get('page') || '1', 10)
 
     try {
@@ -137,7 +140,11 @@ export async function GET(request: NextRequest) {
         ])
 
         const allProducts: ProductItem[] = [...taobaoProducts, ...products1688, ...poizonProducts]
-        const shuffled = allProducts.sort(() => Math.random() - 0.5)
+        
+        let shuffled = allProducts;
+        if (allProducts.length > 0) {
+            shuffled = allProducts.sort(() => Math.random() - 0.5)
+        }
 
         return NextResponse.json({
             success: true,

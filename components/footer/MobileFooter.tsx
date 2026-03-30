@@ -23,8 +23,8 @@ export default function MobileFooter() {
                         const isCart = item.title === 'Корзина'
                         const link = item.title === 'Профиль' ? (isAuthenticated ? item.link : '/login') : item.link
 
-                        // Общие классы для ссылок и кнопок (выравнивание по центру внутри ячейки сетки)
-                        const baseItemClasses = "flex flex-col items-center justify-center gap-1 w-full transition-colors duration-200 text-[10px] text-gray-500 hover:text-red-500 focus:text-red-500"
+                        // ИЗМЕНЕНО: hover:text-red-500 focus:text-red-500 -> hover:text-[#0f6b46] focus:text-[#0f6b46]
+                        const baseItemClasses = "flex flex-col items-center justify-center gap-1 w-full transition-colors duration-200 text-[10px] text-gray-500 hover:text-[#0f6b46] focus:text-[#0f6b46]"
 
                         if (item.title === 'Каталог') {
                             return (
@@ -48,12 +48,14 @@ export default function MobileFooter() {
                                 <div className="relative text-xl">
                                     {<item.icon />}
                                     {isFavorites && totalFavorites > 0 && (
-                                        <span className="absolute -top-1 -right-2 bg-red-500 text-[10px] font-bold text-white rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
+                                        /* ИЗМЕНЕНО: bg-red-500 -> bg-[#0f6b46] */
+                                        <span className="absolute -top-1 -right-2 bg-[#0f6b46] text-[10px] font-bold text-white rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
                                             {totalFavorites > 99 ? '99+' : totalFavorites}
                                         </span>
                                     )}
                                     {isCart && totalCartItems > 0 && (
-                                        <span className="absolute -top-1 -right-2 bg-red-500 text-[10px] font-bold text-white rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
+                                        /* ИЗМЕНЕНО: bg-red-500 -> bg-[#0f6b46] */
+                                        <span className="absolute -top-1 -right-2 bg-[#0f6b46] text-[10px] font-bold text-white rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
                                             {totalCartItems > 99 ? '99+' : totalCartItems}
                                         </span>
                                     )}
