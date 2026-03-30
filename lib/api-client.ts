@@ -31,11 +31,13 @@ function isPoizonEndpoint(endpoint: string): boolean {
 
 function enrichParams1688(params: Record<string, string | number | boolean>): Record<string, string | number | boolean> {
 	const enriched: Record<string, string | number | boolean> = { ...params }
+
 	if (API_CONFIG.ACCESS_KEY) enriched.appKey = API_CONFIG.ACCESS_KEY
 	if (API_CONFIG.ACCESS_SECRET) enriched.appSecret = API_CONFIG.ACCESS_SECRET
 	if (API_CONFIG.ACCESS_SECRET) {
 		enriched.sign = generateSign(enriched, API_CONFIG.ACCESS_SECRET)
 	}
+
 	return enriched
 }
 
@@ -44,11 +46,13 @@ function enrichParamsTaobao(params: Record<string, string | number | boolean>): 
 		...params,
 		language: params.language || 'ru'
 	}
+
 	if (API_CONFIG.ACCESS_KEY) enriched.appKey = API_CONFIG.ACCESS_KEY
 	if (API_CONFIG.ACCESS_SECRET) enriched.appSecret = API_CONFIG.ACCESS_SECRET
 	if (API_CONFIG.ACCESS_SECRET) {
 		enriched.sign = generateSign(enriched, API_CONFIG.ACCESS_SECRET)
 	}
+
 	return enriched
 }
 
@@ -74,6 +78,7 @@ export async function dajiFetch<T = unknown>(endpoint: string, options: RequestO
 	}
 
 	const enrichedParams = enrichParams(endpoint, params)
+
 	const queryString = new URLSearchParams(
 		Object.entries(enrichedParams).reduce(
 			(acc, [key, value]) => {
@@ -91,10 +96,14 @@ export async function dajiFetch<T = unknown>(endpoint: string, options: RequestO
 		...headers
 	}
 
-	const config: RequestInit = { method, headers: defaultHeaders }
+	const config: RequestInit = {
+		method,
+		headers: defaultHeaders
+	}
 
 	if (body) {
 		config.body = body instanceof FormData ? body : JSON.stringify(body)
+
 		if (body instanceof FormData && config.headers) {
 			delete (config.headers as Record<string, string>)['Content-Type']
 		}
@@ -117,6 +126,7 @@ export async function dajiFetch<T = unknown>(endpoint: string, options: RequestO
 
 function mockResponse(endpoint: string, params: Record<string, string | number | boolean>): unknown {
 	log('Mock response for:', endpoint, params)
+
 	return {
 		code: 200,
 		message: 'success',
@@ -134,6 +144,7 @@ export function searchProductsByKeyword(keyword: string, params?: Record<string,
 export function searchProductsByImage(imageFile: File, params?: Record<string, string | number | boolean>) {
 	const formData = new FormData()
 	formData.append('image', imageFile)
+
 	return dajiFetch(ENDPOINTS.IMAGE_SEARCH, {
 		method: 'POST',
 		body: formData,
@@ -208,7 +219,11 @@ export function getFreight1688(
 		...params
 	}
 
-	return dajiFetch(ENDPOINTS.FREIGHT_1688, { method: 'POST', body, params: {} })
+	return dajiFetch(ENDPOINTS.FREIGHT_1688, {
+		method: 'POST',
+		body,
+		params: {}
+	})
 }
 
 export function getLogisticPriceTaobao(
@@ -224,7 +239,11 @@ export function getLogisticPriceTaobao(
 		address_info: addressInfoString
 	}
 
-	return dajiFetch(ENDPOINTS.TAOBAO_LOGISTIC_PRICE, { method: 'POST', body, params: {} })
+	return dajiFetch(ENDPOINTS.TAOBAO_LOGISTIC_PRICE, {
+		method: 'POST',
+		body,
+		params: {}
+	})
 }
 
 export function searchTaobaoProductsByKeyword(keyword: string, params?: Record<string, string | number | boolean>) {
@@ -237,7 +256,12 @@ export function searchTaobaoProductsByKeyword(keyword: string, params?: Record<s
 export function searchTaobaoProductsByImage(imageFile: File, params?: Record<string, string | number | boolean>) {
 	const formData = new FormData()
 	formData.append('image', imageFile)
-	return dajiFetch(ENDPOINTS.TAOBAO_IMAGE_SEARCH, { method: 'POST', body: formData, headers: {} })
+
+	return dajiFetch(ENDPOINTS.TAOBAO_IMAGE_SEARCH, {
+		method: 'POST',
+		body: formData,
+		headers: {}
+	})
 }
 
 export function uploadImageTaobao(imageBase64: string, params?: Record<string, string | number | boolean>) {
@@ -267,7 +291,10 @@ export function uploadImageTaobao(imageBase64: string, params?: Record<string, s
 }
 
 export function searchTaobaoProductsByImageId(imageId: string, language: string = 'en', params?: Record<string, string | number | boolean>) {
-	return dajiFetch(ENDPOINTS.TAOBAO_IMAGE_SEARCH, { method: 'GET', params: { image_id: imageId, language, ...params } })
+	return dajiFetch(ENDPOINTS.TAOBAO_IMAGE_SEARCH, {
+		method: 'GET',
+		params: { image_id: imageId, language, ...params }
+	})
 }
 
 export function searchTaobaoProductsByImageUrl(
@@ -278,29 +305,55 @@ export function searchTaobaoProductsByImageUrl(
 	crop: boolean = true,
 	params?: Record<string, string | number | boolean>
 ) {
-	const requestParams: Record<string, string | number | boolean> = { picUrl: imageUrl, pageNo, pageSize, crop, ...params }
+	const requestParams: Record<string, string | number | boolean> = {
+		picUrl: imageUrl,
+		pageNo,
+		pageSize,
+		crop,
+		...params
+	}
+
 	if (categoryId) requestParams.categoryId = categoryId
-	return dajiFetch(ENDPOINTS.TAOBAO_IMAGE_SEARCH_V2, { method: 'GET', params: requestParams })
+
+	return dajiFetch(ENDPOINTS.TAOBAO_IMAGE_SEARCH_V2, {
+		method: 'GET',
+		params: requestParams
+	})
 }
 
 export function getTaobaoProductDetails(itemId: string, language: string = 'ru', params?: Record<string, string | number | boolean>) {
-	return dajiFetch(ENDPOINTS.TAOBAO_PRODUCT_DETAILS, { method: 'GET', params: { item_id: itemId, language, ...params } })
+	return dajiFetch(ENDPOINTS.TAOBAO_PRODUCT_DETAILS, {
+		method: 'GET',
+		params: { item_id: itemId, language, ...params }
+	})
 }
 
 export function searchTaobaoShops(keyword: string, params?: Record<string, string | number | boolean>) {
-	return dajiFetch(ENDPOINTS.TAOBAO_SHOP_SEARCH, { method: 'GET', params: { keyword, ...params } })
+	return dajiFetch(ENDPOINTS.TAOBAO_SHOP_SEARCH, {
+		method: 'GET',
+		params: { keyword, ...params }
+	})
 }
 
 export function getCategories1688(params?: Record<string, string | number | boolean>) {
-	return dajiFetch(ENDPOINTS.CATEGORY_QUERY, { method: 'GET', params: { ...params } })
+	return dajiFetch(ENDPOINTS.CATEGORY_QUERY, {
+		method: 'GET',
+		params: { ...params }
+	})
 }
 
 export function getTaobaoThemeList(params?: Record<string, string | number | boolean>) {
-	return dajiFetch(ENDPOINTS.TAOBAO_THEME_LIST, { method: 'GET', params: { ...params } })
+	return dajiFetch(ENDPOINTS.TAOBAO_THEME_LIST, {
+		method: 'GET',
+		params: { ...params }
+	})
 }
 
 export function getTaobaoThemeDetail(themeId: string, params?: Record<string, string | number | boolean>) {
-	return dajiFetch(ENDPOINTS.TAOBAO_THEME_DETAIL, { method: 'GET', params: { themeId, page_no: 1, page_size: 20, ...params } })
+	return dajiFetch(ENDPOINTS.TAOBAO_THEME_DETAIL, {
+		method: 'GET',
+		params: { themeId, page_no: 1, page_size: 20, ...params }
+	})
 }
 
 export function getPoizonProducts(
@@ -309,21 +362,41 @@ export function getPoizonProducts(
 	brand?: string,
 	params?: Record<string, string | number | boolean>
 ) {
-	const requestParams: Record<string, string | number | boolean> = { startId: '1', pageSize: '20', ...params }
+	const requestParams: Record<string, string | number | boolean> = {
+		startId: '1',
+		pageSize: '20',
+		...params
+	}
+
 	if (keyword) requestParams.distSpuTitle = keyword
 	if (chineseKeyword) requestParams.dwSpuTitle = chineseKeyword
 	if (brand) requestParams.distBrandName = brand
-	return dajiFetch(ENDPOINTS.POIZON_KEYWORD_SEARCH, { method: 'GET', params: requestParams })
+
+	return dajiFetch(ENDPOINTS.POIZON_KEYWORD_SEARCH, {
+		method: 'GET',
+		params: requestParams
+	})
 }
 
 export function getPoizonProductDetail(dwSpuId: string, dwDesignerId?: string, params?: Record<string, string | number | boolean>) {
-	const requestParams: Record<string, string | number | boolean> = { dwSpuId, ...params }
+	const requestParams: Record<string, string | number | boolean> = {
+		dwSpuId,
+		...params
+	}
+
 	if (dwDesignerId) requestParams.dwDesignerId = dwDesignerId
-	return dajiFetch(ENDPOINTS.POIZON_PRODUCT_DETAIL, { method: 'GET', params: requestParams })
+
+	return dajiFetch(ENDPOINTS.POIZON_PRODUCT_DETAIL, {
+		method: 'GET',
+		params: requestParams
+	})
 }
 
 export function getPoizonCategories(params?: Record<string, string | number | boolean>) {
-	return dajiFetch(ENDPOINTS.POIZON_CATEGORY_GET, { method: 'GET', params: { ...params } })
+	return dajiFetch(ENDPOINTS.POIZON_CATEGORY_GET, {
+		method: 'GET',
+		params: { ...params }
+	})
 }
 
 export interface UnifiedProduct {
@@ -355,11 +428,15 @@ function safeNumber(value: unknown, fallback = 0): number {
 	return Number.isFinite(n) ? n : fallback
 }
 
-function normalizeImageUrl(url: unknown): string {
+function normalizeProductImageUrl(url: unknown): string {
 	const str = safeString(url)
 	if (!str) return ''
 	if (str.startsWith('//')) return `https:${str}`
 	return str
+}
+
+function isUnifiedProduct(item: UnifiedProduct | null): item is UnifiedProduct {
+	return item !== null
 }
 
 function map1688Products(raw: unknown): UnifiedProduct[] {
@@ -372,8 +449,9 @@ function map1688Products(raw: unknown): UnifiedProduct[] {
 	const items = Array.isArray(data.data) ? data.data : []
 
 	return items
-		.map(item => {
+		.map((item): UnifiedProduct | null => {
 			if (!item || typeof item !== 'object') return null
+
 			const p = item as Record<string, unknown>
 
 			let priceStr = '0'
@@ -383,19 +461,22 @@ function map1688Products(raw: unknown): UnifiedProduct[] {
 			}
 
 			const priceCny = parseFloat(priceStr) || 0
+			const offerId = safeString(p.offerId)
+
+			if (!offerId) return null
 
 			return {
-				id: `1688_${safeString(p.offerId)}`,
+				id: `1688_${offerId}`,
 				title: safeString(p.subjectTrans || p.subject || 'Без названия'),
 				price: Math.ceil(cnyToRub(priceCny)),
-				image: normalizeImageUrl(p.imageUrl || p.whiteImage || ''),
-				source: '1688' as const,
+				image: normalizeProductImageUrl(p.imageUrl || p.whiteImage || ''),
+				source: '1688',
 				shopName: safeString(p.companyName || ''),
 				sales: safeNumber(p.monthSold || p.soldOut || 0),
 				originalData: p
 			}
 		})
-		.filter((item): item is UnifiedProduct => Boolean(item && item.id))
+		.filter(isUnifiedProduct)
 }
 
 function mapTaobaoProducts(raw: unknown): UnifiedProduct[] {
@@ -408,19 +489,27 @@ function mapTaobaoProducts(raw: unknown): UnifiedProduct[] {
 	const items = Array.isArray(data.data) ? data.data : []
 
 	return items
-		.map(item => {
+		.map((item): UnifiedProduct | null => {
 			if (!item || typeof item !== 'object') return null
+
 			const p = item as Record<string, unknown>
+			const itemId = safeString(p.itemId)
+
+			if (!itemId) return null
 
 			let title = safeString(p.title || 'Без названия')
 			const ml = p.multiLanguageInfo
 
 			if (Array.isArray(ml) && ml.length > 0) {
-				const ruItem = ml.find(x => x && typeof x === 'object' && (x as Record<string, unknown>).language === 'ru') as
-					| Record<string, unknown>
-					| undefined
-				if (ruItem?.title) title = safeString(ruItem.title)
-				else if (ml[0] && typeof ml[0] === 'object') title = safeString((ml[0] as Record<string, unknown>).title || title)
+				const ruItem = ml.find(
+					x => x && typeof x === 'object' && (x as Record<string, unknown>).language === 'ru'
+				) as Record<string, unknown> | undefined
+
+				if (ruItem?.title) {
+					title = safeString(ruItem.title)
+				} else if (ml[0] && typeof ml[0] === 'object') {
+					title = safeString((ml[0] as Record<string, unknown>).title || title)
+				}
 			} else if (ml && typeof ml === 'object') {
 				title = safeString((ml as Record<string, unknown>).title || title)
 			}
@@ -429,17 +518,17 @@ function mapTaobaoProducts(raw: unknown): UnifiedProduct[] {
 			const priceCny = priceFen > 1000 ? priceFen / 100 : priceFen
 
 			return {
-				id: `taobao_${safeString(p.itemId)}`,
+				id: `taobao_${itemId}`,
 				title,
 				price: Math.ceil(cnyToRub(priceCny)),
-				image: normalizeImageUrl(p.mainImageUrl || p.pictUrl || ''),
-				source: 'taobao' as const,
+				image: normalizeProductImageUrl(p.mainImageUrl || p.pictUrl || ''),
+				source: 'taobao',
 				shopName: safeString(p.shopName || p.nick || ''),
 				sales: safeNumber(p.sales || 0),
 				originalData: p
 			}
 		})
-		.filter((item): item is UnifiedProduct => Boolean(item && item.id))
+		.filter(isUnifiedProduct)
 }
 
 function mapPoizonProducts(raw: unknown): UnifiedProduct[] {
@@ -449,37 +538,33 @@ function mapPoizonProducts(raw: unknown): UnifiedProduct[] {
 	if (obj.code !== 200 || !obj.data || typeof obj.data !== 'object') return []
 
 	const data = obj.data as Record<string, unknown>
-
-	const possibleArrays = [
-		data.data,
-		data.records,
-		data.list,
-		data.rows,
-		data.items
-	]
-
+	const possibleArrays = [data.data, data.records, data.list, data.rows, data.items]
 	const items = possibleArrays.find(Array.isArray) || []
 
 	return (items as unknown[])
-		.map(item => {
+		.map((item): UnifiedProduct | null => {
 			if (!item || typeof item !== 'object') return null
+
 			const p = item as Record<string, unknown>
+			const spuId = safeString(p.dwSpuId || p.spuId || p.productId)
+
+			if (!spuId) return null
 
 			const rawPrice = safeNumber(p.authPrice || p.minPrice || p.minBidPrice || 0)
 			const priceCny = rawPrice > 1000 ? rawPrice / 100 : rawPrice
 
 			return {
-				id: `poizon_${safeString(p.dwSpuId || p.spuId || p.productId)}`,
+				id: `poizon_${spuId}`,
 				title: safeString(p.distSpuTitle || p.dwSpuTitle || p.title || 'Без названия'),
 				price: Math.ceil(cnyToRub(priceCny)),
-				image: normalizeImageUrl(p.image || p.mainImage || ''),
-				source: 'poizon' as const,
+				image: normalizeProductImageUrl(p.image || p.mainImage || ''),
+				source: 'poizon',
 				shopName: safeString(p.distBrandName || p.brandName || ''),
 				sales: safeNumber(p.sales || 0),
 				originalData: p
 			}
 		})
-		.filter((item): item is UnifiedProduct => Boolean(item && item.id))
+		.filter(isUnifiedProduct)
 }
 
 function applySearchFilters(products: UnifiedProduct[], options?: SearchOptions): UnifiedProduct[] {
@@ -508,6 +593,7 @@ function applySearchFilters(products: UnifiedProduct[], options?: SearchOptions)
 
 function dedupeProducts(products: UnifiedProduct[]): UnifiedProduct[] {
 	const seen = new Set<string>()
+
 	return products.filter(product => {
 		const key = `${product.source}_${product.id}`
 		if (seen.has(key)) return false
@@ -526,7 +612,10 @@ export async function searchAllProducts(
 	total: number
 	sources: { taobao: number; '1688': number; poizon: number }
 }> {
-	const selectedSources = options?.sources && options.sources.length > 0 ? options.sources : (['taobao', '1688', 'poizon'] as const)
+	const selectedSources =
+		options?.sources && options.sources.length > 0
+			? options.sources
+			: (['taobao', '1688', 'poizon'] as const)
 
 	const sourceCounts = {
 		taobao: 0,
