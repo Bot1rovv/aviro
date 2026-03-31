@@ -4,9 +4,9 @@ import { MobileMenuModal, MobileSearchInput } from '@/components/ui'
 import FullScreenLoader from '@/components/ui/FullScreenLoader/FullScreenLoader'
 import { PagesConfig } from '@/config/pages.config'
 import { useSearch } from '@/hooks'
-import { useCartStore, useFavoritesStore } from '@/lib/store'
+import { useFavoritesStore } from '@/lib/store'
 import type { SearchSource } from '@/types/search'
-import { Heart, Menu, ShoppingBag } from 'lucide-react'
+import { Heart, Menu } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -19,7 +19,6 @@ export default function MobileHeader() {
     const fileInputRef = useRef<HTMLInputElement>(null)
     const router = useRouter()
 
-    const totalCartItems = useCartStore(state => state.totalItems)
     const totalFavorites = useFavoritesStore(state => state.totalItems)
 
     const { searchValue, handleChange, handleSearch } = useSearch()
@@ -91,10 +90,12 @@ export default function MobileHeader() {
                             className="flex-shrink-0"
                         >
                             <Image
-                                src="/images/logo-header.png"
-                                alt="Logo"
-                                width={100}
-                                height={100}
+                                src="/images/logo-header-new.png"
+                                alt="логотип Arivoo"
+                                width={544}
+                                height={207}
+                                className="h-auto w-[150px] object-contain"
+                                priority
                             />
                         </Link>
 
@@ -108,19 +109,6 @@ export default function MobileHeader() {
                                 {totalFavorites > 0 && (
                                     <span className="absolute -top-2 -right-2 bg-[#0f6b46] text-xs text-white rounded-full w-4 h-4 flex items-center justify-center">
                                         {totalFavorites > 9 ? '9+' : totalFavorites}
-                                    </span>
-                                )}
-                            </Link>
-
-                            <Link
-                                href={PagesConfig.CART}
-                                className="relative"
-                                aria-label={`Корзина, ${totalCartItems} товаров`}
-                            >
-                                <ShoppingBag />
-                                {totalCartItems > 0 && (
-                                    <span className="absolute -top-2 -right-2 bg-[#0f6b46] text-xs text-white rounded-full w-4 h-4 flex items-center justify-center">
-                                        {totalCartItems > 9 ? '9+' : totalCartItems}
                                     </span>
                                 )}
                             </Link>

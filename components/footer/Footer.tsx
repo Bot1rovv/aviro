@@ -1,5 +1,5 @@
 import Image from 'next/image'
-import FooterLogo from '../logo/FooterLogo'
+import Link from 'next/link'
 import FooterMenu from '../menu/FooterMenu/FooterMenu'
 
 interface FooterProps {
@@ -8,18 +8,31 @@ interface FooterProps {
 
 export default function Footer({ openTerms }: FooterProps) {
     return (
-        <footer className="hidden lg:flex flex-col ">
+        <footer className="hidden lg:flex flex-col">
             <FooterMenu openTerms={openTerms} />
-            {/* ИЗМЕНЕНО: Подвал теперь bg-[#0f6b46] вместо bg-blue-700 */}
-            <div className="bg-[#0f6b46] flex items-center justify-between py-1.5 max-h-16">
-                <FooterLogo />
-                <div className="copyright text-white text-sm">Copyright © 2026 Arivoo – All Rights Reserved.</div>
+
+            <div className="bg-[#0f6b46] flex items-center justify-between gap-6 px-6 py-2 min-h-[72px]">
+                <Link href="/" className="shrink-0">
+                    <Image
+                        width={544}
+                        height={207}
+                        src="/images/logo-footer.png"
+                        alt="Arivoo"
+                        className="h-auto w-[150px] object-contain"
+                        priority
+                    />
+                </Link>
+
+                <div className="copyright flex-1 text-center text-white text-sm">
+                    Copyright © 2026 Arivoo – All Rights Reserved.
+                </div>
+
                 <Image
                     width={768}
                     height={85}
                     src="/images/banks.png"
-                    alt="logo"
-                    className="max-w-[200px] max-h-[34px]"
+                    alt="Способы оплаты"
+                    className="h-auto max-w-[200px] max-h-[34px] object-contain"
                 />
             </div>
         </footer>

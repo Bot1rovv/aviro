@@ -7,29 +7,39 @@ import { NextRequest, NextResponse } from 'next/server'
 
 // Пуленепробиваемая конвертация цены
 const safeConvert = (cny: number | null | undefined | typeof NaN) => {
-    if (cny === null || cny === undefined || Number.isNaN(cny)) return 0;
+    if (cny === null || cny === undefined || Number.isNaN(cny)) return 0
+
     try {
-        const rub = cnyToRub(cny);
-        return (rub && rub > 0) ? rub : (cny * 13.5);
+        const rub = cnyToRub(cny)
+        return rub && rub > 0 ? rub : cny * 13.5
     } catch (e) {
-        return cny * 13.5;
+        return cny * 13.5
     }
 }
 
 // Поиск товаров с Taobao
 async function searchTaobao(keyword: string, page: number): Promise<ProductItem[]> {
     try {
-        const result = await searchTaobaoProductsByKeyword(keyword, { page_no: page, page_size: 20 })
+        const result = await searchTaobaoProductsByKeyword(keyword, {
+            page_no: page,
+            page_size: 20
+        })
+
         if (result && typeof result === 'object') {
             const obj = result as Record<string, unknown>
+
             if (obj.code === 200 && obj.data) {
                 const data = obj.data as Record<string, unknown>
                 const items = Array.isArray(data.data) ? data.data : []
+
                 return items.map((item: TaobaoProductResponse) => {
-                    const itemAny = item as any;
-                    const rawPrice = String(itemAny.price || itemAny.promotionPrice || itemAny.promotion_price || '0').replace(/[^0-9.]/g, '');
-                    const priceCny = parseFloat(rawPrice) || 0;
-                    
+                    const itemAny = item as any
+                    const rawPrice = String(
+                        itemAny.price || itemAny.promotionPrice || itemAny.promotion_price || '0'
+                    ).replace(/[^0-9.]/g, '')
+
+                    const priceCny = parseFloat(rawPrice) || 0
+
                     return {
                         productId: `taobao_${item.itemId}` || `mock_taobao_${Date.now()}`,
                         title: getTaobaoTitle(item),
@@ -42,6 +52,7 @@ async function searchTaobao(keyword: string, page: number): Promise<ProductItem[
                 })
             }
         }
+
         return []
     } catch (error) {
         console.error('Taobao search error:', error)
@@ -52,30 +63,41 @@ async function searchTaobao(keyword: string, page: number): Promise<ProductItem[
 // Поиск товаров с 1688
 async function search1688(keyword: string, page: number): Promise<ProductItem[]> {
     try {
-        const result = await searchProductsByKeyword(keyword, { beginPage: page, pageSize: 20 })
+        const result = await searchProductsByKeyword(keyword, {
+            beginPage: page,
+            pageSize: 20
+        })
+
         if (result && typeof result === 'object') {
             const obj = result as Record<string, unknown>
+
             if (obj.code === 200 && obj.data) {
                 const data = obj.data as Record<string, unknown>
                 const items = Array.isArray(data.data) ? data.data : []
+
                 return items.map((item: Record<string, unknown>) => {
                     let price = String(item.price || item.showPrice || item.currentPrice || '0')
                     const priceInfo = item.priceInfo
+
                     if (priceInfo && typeof priceInfo === 'object') {
-                        price = String((priceInfo as Record<string, unknown>).price || (priceInfo as Record<string, unknown>).consignPrice || price)
+                        price = String(
+                            (priceInfo as Record<string, unknown>).price ||
+                                (priceInfo as Record<string, unknown>).consignPrice ||
+                                price
+                        )
                     } else if (priceInfo && typeof priceInfo === 'string') {
                         const match = priceInfo.match(/price[=\s]*(\d+\.?\d*)/i)
                         if (match) price = match[1]
                     }
-                    
-                    price = price.replace(/[^0-9.]/g, '');
-                    const priceCny = parseFloat(price) || 0;
+
+                    price = price.replace(/[^0-9.]/g, '')
+                    const priceCny = parseFloat(price) || 0
                     const title = String(item.subjectTrans || item.subject || '')
                     const imageUrl = String(item.imageUrl || item.whiteImage || '')
 
                     return {
                         productId: `1688_${item.offerId}` || `mock_1688_${Date.now()}`,
-                        title: title,
+                        title,
                         price: Math.ceil(safeConvert(priceCny)).toString(),
                         imageUrl: imageUrl || 'https://via.placeholder.com/300',
                         shopName: String(item.companyName || ''),
@@ -85,6 +107,7 @@ async function search1688(keyword: string, page: number): Promise<ProductItem[]>
                 })
             }
         }
+
         return []
     } catch (error) {
         console.error('1688 search error:', error)
@@ -96,17 +119,22 @@ async function search1688(keyword: string, page: number): Promise<ProductItem[]>
 async function searchPoizon(keyword: string, page: number): Promise<ProductItem[]> {
     try {
         const startId = (page - 1) * 20 + 1
+
         const result = await getPoizonProducts(keyword, undefined, undefined, {
             startId: String(startId),
             pageSize: 20
         })
+
         if (result && typeof result === 'object') {
             const obj = result as Record<string, unknown>
+
             if (obj.code === 200 && obj.data) {
                 const data = obj.data as Record<string, unknown>
                 const items = Array.isArray(data.spuList) ? data.spuList : []
+
                 return items.map((item: Record<string, unknown>) => {
                     const priceCny = Number(item.authPrice || item.price || 0) / 100
+
                     return {
                         productId: `poizon_${item.dwSpuId}` || `mock_poizon_${Date.now()}`,
                         title: String(item.distSpuTitle || item.dwSpuTitle || ''),
@@ -119,6 +147,7 @@ async function searchPoizon(keyword: string, page: number): Promise<ProductItem[
                 })
             }
         }
+
         return []
     } catch (error) {
         console.error('Poizon search error:', error)
@@ -128,8 +157,14 @@ async function searchPoizon(keyword: string, page: number): Promise<ProductItem[
 
 export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
-    // ИСПРАВЛЕНИЕ: Теперь бэкенд ищет и "q" и "keyword"
-    const keyword = searchParams.get('q') || searchParams.get('keyword') || searchParams.get('query') || 'товары'
+
+    // Ищем и q, и keyword, и query
+    const keyword =
+        searchParams.get('q') ||
+        searchParams.get('keyword') ||
+        searchParams.get('query') ||
+        'товары'
+
     const page = parseInt(searchParams.get('page') || '1', 10)
 
     try {
@@ -139,22 +174,42 @@ export async function GET(request: NextRequest) {
             searchPoizon(keyword, page)
         ])
 
-        const allProducts: ProductItem[] = [...taobaoProducts, ...products1688, ...poizonProducts]
-        
-        let shuffled = allProducts;
-        if (allProducts.length > 0) {
-            shuffled = allProducts.sort(() => Math.random() - 0.5)
-        }
+        const allProducts: ProductItem[] = [
+            ...taobaoProducts,
+            ...products1688,
+            ...poizonProducts
+        ]
 
-        return NextResponse.json({
-            success: true,
-            data: shuffled,
-            sources: { taobao: taobaoProducts.length, '1688': products1688.length, poizon: poizonProducts.length }
-        })
+        return NextResponse.json(
+            {
+                success: true,
+                data: allProducts,
+                sources: {
+                    taobao: taobaoProducts.length,
+                    '1688': products1688.length,
+                    poizon: poizonProducts.length
+                }
+            },
+            {
+                headers: {
+                    'Cache-Control': 's-maxage=60, stale-while-revalidate=300'
+                }
+            }
+        )
     } catch (error) {
         console.error('[/api/search-all] Error:', error)
+
         return NextResponse.json(
-            { success: false, error: error instanceof Error ? error.message : 'Unknown error', data: [] },
+            {
+                success: false,
+                error: error instanceof Error ? error.message : 'Unknown error',
+                data: [],
+                sources: {
+                    taobao: 0,
+                    '1688': 0,
+                    poizon: 0
+                }
+            },
             { status: 500 }
         )
     }

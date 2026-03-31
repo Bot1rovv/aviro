@@ -24,17 +24,22 @@ export function cn(...classes: (string | number | boolean | undefined | null | R
 	return result.join(' ')
 }
 
+function forceHttpsForKnownHosts(url: string): string {
+	return url
+		.replace(/^http:\/\/img\.alicdn\.com/i, 'https://img.alicdn.com')
+		.replace(/^http:\/\/gview\.alicdn\.com/i, 'https://gview.alicdn.com')
+		.replace(/^http:\/\/gw\.alicdn\.com/i, 'https://gw.alicdn.com')
+		.replace(/^http:\/\/img\.taobao\.com/i, 'https://img.taobao.com')
+		.replace(/^http:\/\/img\.china\.alibaba\.com/i, 'https://img.china.alibaba.com')
+		.replace(/^http:\/\/cbu01\.alicdn\.com/i, 'https://cbu01.alicdn.com')
+		.replace(/^http:\/\/global-img-cdn\.1688\.com/i, 'https://global-img-cdn.1688.com')
+		.replace(/^http:\/\/cdn\.poizon\.com/i, 'https://cdn.poizon.com')
+		.replace(/^http:\/\/img\.xqh\.me/i, 'https://img.xqh.me')
+		.replace(/^http:\/\/cdn\.xqhh5\.com/i, 'https://cdn.xqhh5.com')
+}
+
 /**
  * Нормализует URL изображения для Next.js/Image и обычного <img>.
- * Поддерживает:
- * - //img.alicdn.com/...
- * - http://...
- * - https://...
- * - /imgextra/...
- * - imgextra/...
- * - /bao/uploaded/...
- * - data:image/...
- * - локальные /no-image.jpg
  */
 export function normalizeImageUrl(url: string): string {
 	if (!url || typeof url !== 'string') return '/no-image.jpg'
@@ -42,27 +47,22 @@ export function normalizeImageUrl(url: string): string {
 	const trimmed = url.trim()
 	if (!trimmed) return '/no-image.jpg'
 
-	// base64 / data uri
 	if (trimmed.startsWith('data:image/')) {
 		return trimmed
 	}
 
-	// protocol-relative
 	if (trimmed.startsWith('//')) {
-		return `https:${trimmed}`
+		return forceHttpsForKnownHosts(`https:${trimmed}`)
 	}
 
-	// absolute
 	if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-		return trimmed
+		return forceHttpsForKnownHosts(trimmed)
 	}
 
-	// локальные public-файлы
 	if (trimmed.startsWith('/no-image') || trimmed.startsWith('/images/') || trimmed.startsWith('/favicons/')) {
 		return trimmed
 	}
 
-	// частые пути Alibaba/Taobao без домена
 	if (trimmed.startsWith('/imgextra/') || trimmed.startsWith('imgextra/')) {
 		return `https://img.alicdn.com/${trimmed.replace(/^\/+/, '')}`
 	}
@@ -79,21 +79,38 @@ export function normalizeImageUrl(url: string): string {
 		return `https://img.alicdn.com/${trimmed.replace(/^\/+/, '')}`
 	}
 
-	// если пришёл домен без протокола
 	if (
 		trimmed.startsWith('img.alicdn.com/') ||
 		trimmed.startsWith('gview.alicdn.com/') ||
 		trimmed.startsWith('gw.alicdn.com/') ||
 		trimmed.startsWith('img.taobao.com/') ||
-		trimmed.startsWith('img.china.alibaba.com/')
+		trimmed.startsWith('img.china.alibaba.com/') ||
+		trimmed.startsWith('cbu01.alicdn.com/') ||
+		trimmed.startsWith('global-img-cdn.1688.com/')
 	) {
 		return `https://${trimmed}`
 	}
 
-	// если это другой относительный путь, не ломаем сайт
 	if (trimmed.startsWith('/')) {
 		return trimmed
 	}
 
-	return `https://${trimmed}`
+	return forceHttpsForKnownHosts(`https://${trimmed}`)
+}
+
+export function normalizeVideoUrl(url: string): string {
+	if (!url || typeof url !== 'string') return ''
+
+	const trimmed = url.trim()
+	if (!trimmed) return ''
+
+	if (trimmed.startsWith('//')) {
+		return `https:${trimmed}`
+	}
+
+	if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+		return forceHttpsForKnownHosts(trimmed)
+	}
+
+	return forceHttpsForKnownHosts(`https://${trimmed}`)
 }

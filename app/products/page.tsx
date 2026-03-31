@@ -1,4 +1,5 @@
 import { PageHeader, Pagination, ProductGrid } from '@/components/ui'
+import { searchProducts } from '@/lib/api/search-product'
 import categories1688 from '@/lib/data/categories_1688_translated.json'
 import { getSession } from '@/lib/session-store-db'
 import { getKeywordForCategory } from '@/lib/utils/category'
@@ -7,16 +8,14 @@ import { ProductItem } from '@/types/product'
 
 const PRODUCTS_PAGE_SIZE = 20
 
-// Серверная функция загрузки товаров по ключевому слову
 async function fetchProductsByKeyword(keyword: string, page: number): Promise<ProductItem[]> {
 	try {
-		const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/search-all?keyword=${encodeURIComponent(keyword)}&page=${page}`, {
-			cache: 'no-store'
-		})
-		const json = await res.json()
-		if (json.success && json.data) {
-			return json.data
+		const result = await searchProducts(keyword, page)
+
+		if (result.success && result.data) {
+			return result.data
 		}
+
 		return []
 	} catch {
 		return []
@@ -43,19 +42,18 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
 	const sessionId = params?.sessionId
 	const currentPage = parseInt(params?.page || '1', 10)
 
-	// Обработка поиска по изображению
 	let imageProducts: ProductItem[] = []
+
 	if (imageSearch) {
 		if (sessionId) {
-			// Получаем результаты из сессии
 			const sessionData = await getSession(sessionId)
+
 			if (sessionData) {
 				imageProducts = sessionData.results
 			} else {
 				console.error('Сессия истекла или не найдена')
 			}
 		} else if (imageResultsParam) {
-			// Старый способ: результаты в URL
 			try {
 				imageProducts = JSON.parse(decodeURIComponent(imageResultsParam))
 			} catch (e) {
@@ -64,13 +62,13 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
 		}
 	}
 
-	// Определяем ключевое слово для поиска
 	let keyword = 'товары'
+
 	if (subcategoryId && categoryId) {
 		const categories = categories1688 as Record<string, Category1688>
 		const subcatName = categories[categoryId]?.subcategories?.[subcategoryId]
+
 		if (subcatName) {
-			// Извлекаем английское название из скобок если есть
 			const enMatch = subcatName.match(/\(([^)]+)\)/)
 			keyword = enMatch ? enMatch[1].toLowerCase() : subcatName.split(' (')[0].toLowerCase()
 		}
@@ -78,10 +76,8 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
 		keyword = getKeywordForCategory(categoryId, categories1688 as Record<string, Category1688>)
 	}
 
-	// Загружаем страницу товаров на сервере (только если не поиск по изображению)
 	const initialProducts = imageSearch ? [] : await fetchProductsByKeyword(keyword, currentPage)
 
-	// Определяем название категории для заголовка
 	const categories = categories1688 as Record<string, Category1688>
 	let categoryTitle = 'Все товары'
 	let subcategoryTitle = ''
@@ -91,28 +87,35 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
 	} else if (categoryId && categories[categoryId]) {
 		const cat = categories[categoryId]
 		categoryTitle = cat.name_ru || cat.name_en || 'Категория'
+
 		if (subcategoryId && cat.subcategories?.[subcategoryId]) {
 			subcategoryTitle = cat.subcategories[subcategoryId]
 		}
 	}
 
 	const displayTitle = subcategoryTitle ? `${categoryTitle} / ${subcategoryTitle}` : categoryTitle
-
-	// Используем результаты поиска по изображению или обычные товары
 	const displayProducts = imageSearch ? imageProducts : initialProducts
 
 	return (
 		<div className="container mx-auto px-4 py-8">
 			<PageHeader
 				title={displayTitle}
-				subtitle={imageSearch ? `Найдено товаров: ${displayProducts.length}` : categoryId || currentPage > 1 ? `Страница ${currentPage}` : undefined}
+				subtitle={
+					imageSearch
+						? `Найдено товаров: ${displayProducts.length}`
+						: categoryId || currentPage > 1
+							? `Страница ${currentPage}`
+							: undefined
+				}
 			/>
 
 			<ProductGrid
 				products={displayProducts}
 				loading={false}
 				emptyMessage={
-					imageSearch ? 'По изображению ничего не найдено. Попробуйте другое изображение.' : 'Товары не найдены. Попробуйте выбрать другую категорию.'
+					imageSearch
+						? 'По изображению ничего не найдено. Попробуйте другое изображение.'
+						: 'Товары не найдены. Попробуйте выбрать другую категорию.'
 				}
 			/>
 

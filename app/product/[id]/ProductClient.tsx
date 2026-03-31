@@ -4,7 +4,7 @@ import { Button, QuantitySelector } from '@/components/ui'
 import { useFavorites } from '@/hooks'
 import { useCartStore } from '@/lib/store'
 import { getColorHex, normalizeColor } from '@/lib/utils/color'
-import { normalizeImageUrl } from '@/lib/utils/utils'
+import { normalizeImageUrl, normalizeVideoUrl } from '@/lib/utils/utils'
 import { ProductDetail } from '@/types/product'
 import { ArrowLeft, Check, Heart, ShoppingBag, Star, X } from 'lucide-react'
 import Image from 'next/image'
@@ -16,7 +16,7 @@ import { toast } from 'sonner'
 function useMediaQuery(query: string): boolean {
     const subscribe = useCallback(
         (callback: () => void) => {
-            if (typeof window === 'undefined') return () => {}
+            if (typeof window !== 'undefined') return () => {}
             const media = window.matchMedia(query)
             media.addEventListener('change', callback)
             return () => media.removeEventListener('change', callback)
@@ -40,10 +40,7 @@ function getValidImage(img: string | undefined | null): string {
 
 function getValidVideo(url: string | undefined | null): string {
     if (!url) return ''
-    const trimmed = url.trim()
-    if (!trimmed) return ''
-    if (trimmed.startsWith('//')) return `https:${trimmed}`
-    return trimmed
+    return normalizeVideoUrl(url)
 }
 
 type MediaItem =
@@ -437,10 +434,6 @@ export function ProductClient({ product, productId }: ProductClientProps) {
         }
         setVideoError(false)
     }, [selectedSku])
-
-    const resetCurrentSelection = () => {
-        setQuantity(1)
-    }
 
     const handleRemoveVariant = (variantKey: string) => {
         const variantToRemove = selectedVariants.find(item => item.key === variantKey)
@@ -1019,7 +1012,7 @@ export function ProductClient({ product, productId }: ProductClientProps) {
                                     className="w-full rounded-xl bg-[#0f6b46] py-6 text-base font-bold text-white shadow-lg active:scale-95 transition-all hover:bg-[#0a4e32]"
                                     onClick={handleDrawerSubmit}
                                 >
-                                    Добавить в корзину
+                                    В корзину
                                 </Button>
 
                                 {(selectedVariants.length > 0 || isInCart) && (

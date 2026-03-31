@@ -8,17 +8,32 @@ export const revalidate = 300
 async function fetchProduct(productId: string): Promise<{ success: boolean; data?: ProductDetail; error?: string }> {
 	try {
 		const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/product/${productId}`, {
-			next: { revalidate: 300 } // кэширование на 5 минут
+			next: { revalidate: 300 }
 		})
+
+		if (!res.ok) {
+			return {
+				success: false,
+				error: `HTTP error: ${res.status}`
+			}
+		}
+
 		const data = await res.json()
+
 		if (data.success && data.data) {
 			return { success: true, data: data.data }
-		} else {
-			return { success: false, error: data.error || 'Product not found' }
+		}
+
+		return {
+			success: false,
+			error: data.error || 'Product not found'
 		}
 	} catch (error) {
 		console.error('Failed to fetch product:', error)
-		return { success: false, error: 'Failed to load product' }
+		return {
+			success: false,
+			error: 'Failed to load product'
+		}
 	}
 }
 
@@ -29,19 +44,17 @@ interface ProductPageProps {
 }
 
 export default async function ProductPage({ params }: ProductPageProps) {
-	const { id } = await params
-	const productId = id
+	const productId = params.id
 	const { success, data: product, error } = await fetchProduct(productId)
 
 	if (!success || !product) {
-		// Обработка ошибки - можно показать страницу с ошибкой
 		return (
 			<div className="container mx-auto px-4 py-8">
-				<div className="text-center py-12">
-					<p className="text-red-500 text-lg">{error || 'Товар не найден'}</p>
+				<div className="py-12 text-center">
+					<p className="text-lg text-red-500">{error || 'Товар не найден'}</p>
 					<Link
 						href="/"
-						className="inline-block mt-4 px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+						className="mt-4 inline-block rounded bg-[#0f6b46] px-6 py-2 text-white hover:bg-[#0a4e32]"
 					>
 						Вернуться на главную
 					</Link>
@@ -50,10 +63,5 @@ export default async function ProductPage({ params }: ProductPageProps) {
 		)
 	}
 
-	return (
-		<ProductClient
-			product={product}
-			productId={productId}
-		/>
-	)
+	return <ProductClient product={product} productId={productId} />
 }
