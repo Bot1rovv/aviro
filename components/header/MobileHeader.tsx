@@ -90,7 +90,7 @@ export default function MobileHeader() {
                             className="flex-shrink-0"
                         >
                             <Image
-                                src="/images/logo-header-new.png"
+                                src="/images/logo-header.png"
                                 alt="логотип Arivoo"
                                 width={544}
                                 height={207}
