@@ -16,19 +16,30 @@ import { toast } from 'sonner'
 function useMediaQuery(query: string): boolean {
     const subscribe = useCallback(
         (callback: () => void) => {
-            if (typeof window !== 'undefined') return () => {}
-            const media = window.matchMedia(query)
-            media.addEventListener('change', callback)
-            return () => media.removeEventListener('change', callback)
+            if (typeof window === 'undefined') {
+                return () => {}
+            }
+
+            const mediaQueryList: MediaQueryList = window.matchMedia(query)
+            const handler = () => callback()
+
+            mediaQueryList.addEventListener('change', handler)
+
+            return () => {
+                mediaQueryList.removeEventListener('change', handler)
+            }
         },
         [query]
     )
 
-    return useSyncExternalStore(
-        subscribe,
-        () => (typeof window !== 'undefined' ? window.matchMedia(query).matches : false),
-        () => false
-    )
+    const getSnapshot = useCallback(() => {
+        if (typeof window === 'undefined') return false
+        return window.matchMedia(query).matches
+    }, [query])
+
+    const getServerSnapshot = useCallback(() => false, [])
+
+    return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
 }
 
 function getValidImage(img: string | undefined | null): string {
