@@ -102,11 +102,13 @@ export default function Product({
 		}
 	}
 
+	const shouldShowFallback = imgError || !normalizedImageUrl || normalizedImageUrl === '/no-image.jpg'
+
 	return (
 		<div className="group flex h-full flex-col overflow-hidden rounded-xl border border-gray-100 bg-white transition-all duration-300 hover:border-green-100 hover:shadow-xl active:scale-[0.99]">
 			<div className="relative aspect-square flex-shrink-0 overflow-hidden bg-gray-50">
 				<Link href={`/product/${productId}`} className="block h-full w-full">
-					{!imgError ? (
+					{!shouldShowFallback ? (
 						<Image
 							src={normalizedImageUrl}
 							alt={title || 'Товар'}

@@ -3,7 +3,17 @@
  * Принимает любое количество аргументов (строк, объектов, массивов).
  * @example cn('foo', { bar: true }, ['baz'])
  */
-export function cn(...classes: (string | number | boolean | undefined | null | Record<string, boolean> | (string | number)[])[]): string {
+export function cn(
+	...classes: (
+		| string
+		| number
+		| boolean
+		| undefined
+		| null
+		| Record<string, boolean>
+		| (string | number)[]
+	)[]
+): string {
 	const result: string[] = []
 
 	for (const cls of classes) {
@@ -38,6 +48,19 @@ function forceHttpsForKnownHosts(url: string): string {
 		.replace(/^http:\/\/cdn\.xqhh5\.com/i, 'https://cdn.xqhh5.com')
 }
 
+function isBrokenPlaceholder(url: string): boolean {
+	const lower = url.toLowerCase()
+
+	return (
+		lower.includes('via.placeholder.com') ||
+		lower.includes('placeholder.com') ||
+		lower.includes('600x400?text=product') ||
+		lower.includes('text=product+1') ||
+		lower.includes('text=product+2') ||
+		lower.includes('text=product+3')
+	)
+}
+
 /**
  * Нормализует URL изображения для Next.js/Image и обычного <img>.
  */
@@ -47,19 +70,29 @@ export function normalizeImageUrl(url: string): string {
 	const trimmed = url.trim()
 	if (!trimmed) return '/no-image.jpg'
 
+	if (isBrokenPlaceholder(trimmed)) {
+		return '/no-image.jpg'
+	}
+
 	if (trimmed.startsWith('data:image/')) {
 		return trimmed
 	}
 
 	if (trimmed.startsWith('//')) {
-		return forceHttpsForKnownHosts(`https:${trimmed}`)
+		const normalized = forceHttpsForKnownHosts(`https:${trimmed}`)
+		return isBrokenPlaceholder(normalized) ? '/no-image.jpg' : normalized
 	}
 
 	if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-		return forceHttpsForKnownHosts(trimmed)
+		const normalized = forceHttpsForKnownHosts(trimmed)
+		return isBrokenPlaceholder(normalized) ? '/no-image.jpg' : normalized
 	}
 
-	if (trimmed.startsWith('/no-image') || trimmed.startsWith('/images/') || trimmed.startsWith('/favicons/')) {
+	if (
+		trimmed.startsWith('/no-image') ||
+		trimmed.startsWith('/images/') ||
+		trimmed.startsWith('/favicons/')
+	) {
 		return trimmed
 	}
 
@@ -86,7 +119,10 @@ export function normalizeImageUrl(url: string): string {
 		trimmed.startsWith('img.taobao.com/') ||
 		trimmed.startsWith('img.china.alibaba.com/') ||
 		trimmed.startsWith('cbu01.alicdn.com/') ||
-		trimmed.startsWith('global-img-cdn.1688.com/')
+		trimmed.startsWith('global-img-cdn.1688.com/') ||
+		trimmed.startsWith('cdn.poizon.com/') ||
+		trimmed.startsWith('img.xqh.me/') ||
+		trimmed.startsWith('cdn.xqhh5.com/')
 	) {
 		return `https://${trimmed}`
 	}
@@ -95,7 +131,17 @@ export function normalizeImageUrl(url: string): string {
 		return trimmed
 	}
 
-	return forceHttpsForKnownHosts(`https://${trimmed}`)
+	// Если строка явно не похожа на путь к картинке — не ломаем карточку
+	if (
+		!trimmed.includes('.') &&
+		!trimmed.includes('/') &&
+		trimmed.length < 40
+	) {
+		return '/no-image.jpg'
+	}
+
+	const normalized = forceHttpsForKnownHosts(`https://${trimmed}`)
+	return isBrokenPlaceholder(normalized) ? '/no-image.jpg' : normalized
 }
 
 export function normalizeVideoUrl(url: string): string {
