@@ -55,7 +55,11 @@ export default function Cart({ isOpen, onClose }: CartProps) {
                         </h2>
                         <p className="text-sm text-gray-500 mt-1">
                             {totalItems}{' '}
-                            {totalItems === 1 ? MESSAGES.CART_ITEM : totalItems > 1 && totalItems < 5 ? MESSAGES.CART_ITEMS : MESSAGES.CART_ITEMS_PLURAL}
+                            {totalItems === 1
+                                ? MESSAGES.CART_ITEM
+                                : totalItems > 1 && totalItems < 5
+                                  ? MESSAGES.CART_ITEMS
+                                  : MESSAGES.CART_ITEMS_PLURAL}
                         </p>
                     </div>
 
@@ -85,6 +89,7 @@ export default function Cart({ isOpen, onClose }: CartProps) {
                                                     src={item.imageUrl}
                                                     alt={item.title}
                                                     fill
+                                                    unoptimized
                                                     className="object-cover"
                                                     sizes="80px"
                                                     loading="lazy"
@@ -119,7 +124,15 @@ export default function Cart({ isOpen, onClose }: CartProps) {
                                             <div className="flex items-center gap-2">
                                                 <div className="flex items-center border border-gray-200 rounded-lg">
                                                     <button
-                                                        onClick={() => updateQuantity(item.productId, item.quantity - 1, item.color, item.size, item.skuId)}
+                                                        onClick={() =>
+                                                            updateQuantity(
+                                                                item.productId,
+                                                                item.quantity - 1,
+                                                                item.color,
+                                                                item.size,
+                                                                item.skuId
+                                                            )
+                                                        }
                                                         className="w-7 h-7 flex items-center justify-center hover:bg-gray-100 transition-colors disabled:opacity-50"
                                                         disabled={item.quantity <= 1}
                                                     >
@@ -127,7 +140,15 @@ export default function Cart({ isOpen, onClose }: CartProps) {
                                                     </button>
                                                     <span className="w-8 text-center text-sm">{item.quantity}</span>
                                                     <button
-                                                        onClick={() => updateQuantity(item.productId, item.quantity + 1, item.color, item.size, item.skuId)}
+                                                        onClick={() =>
+                                                            updateQuantity(
+                                                                item.productId,
+                                                                item.quantity + 1,
+                                                                item.color,
+                                                                item.size,
+                                                                item.skuId
+                                                            )
+                                                        }
                                                         className="w-7 h-7 flex items-center justify-center hover:bg-gray-100 transition-colors"
                                                     >
                                                         <Plus size={14} />
@@ -135,7 +156,9 @@ export default function Cart({ isOpen, onClose }: CartProps) {
                                                 </div>
 
                                                 <button
-                                                    onClick={() => removeItem(item.productId, item.color, item.size, item.skuId)}
+                                                    onClick={() =>
+                                                        removeItem(item.productId, item.color, item.size, item.skuId)
+                                                    }
                                                     className="p-2 text-[#0f6b46] hover:bg-green-50 rounded-lg transition-colors hover:cursor-pointer"
                                                     title="Удалить"
                                                 >
