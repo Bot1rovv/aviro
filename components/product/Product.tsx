@@ -2,7 +2,6 @@
 
 import { SourceBadge } from '@/components/ui'
 import { useCart, useFavorites } from '@/hooks'
-import { normalizeImageUrl } from '@/lib/utils/utils'
 import { ProductItem } from '@/types/product'
 import { Heart, ShoppingCart } from 'lucide-react'
 import Image from 'next/image'
@@ -10,20 +9,20 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 
 interface ProductProps extends Omit<ProductItem, 'sales' | 'rating'> {
-sales?: string | number
-rating?: string | number
-shopName?: string
+	sales?: string | number
+	rating?: string | number
+	shopName?: string
 }
 
-function safeNormalizeImage(url?: string | null): string {
-if (!url) return ''
-	try {
-		const normalized = normalizeImageUrl(url)
-		if (!normalized || normalized === '/no-image.jpg') return ''
-		return normalized
-	} catch {
-		return ''
-	}
+function safeImage(url?: string | null): string {
+	if (!url) return ''
+
+	const value = String(url).trim()
+	if (!value) return ''
+
+	if (value.startsWith('//')) return `https:${value}`
+
+	return value
 }
 
 export default function Product({
@@ -34,194 +33,224 @@ export default function Product({
 	source,
 	sales,
 	rating
-	}: ProductProps) {
+}: ProductProps) {
 	const { addItem, removeItem, isInCart } = useCart()
 	const { addFavorite, removeFavorite, isFavorite } = useFavorites()
+
 	const favorite = isFavorite(productId)
-const inCart = isInCart(productId)
+	const inCart = isInCart(productId)
 
-const initialPrice = useMemo(() => {
-	return parseFloat(String(price).replace(/[^\d.-]/g, '')) || 0
-}, [price])
+	const initialPrice = useMemo(() => {
+		return parseFloat(String(price).replace(/[^\d.-]/g, '')) || 0
+	}, [price])
 
-const initialNormalizedImageUrl = useMemo(() => {
-	return safeNormalizeImage(imageUrl || '')
-}, [imageUrl])
+	const initialImage = useMemo(() => {
+		return safeImage(imageUrl || '')
+	}, [imageUrl])
 
-const [resolvedImageUrl, setResolvedImageUrl] = useState(initialNormalizedImageUrl)
-const [displayPrice, setDisplayPrice] = useState(initialPrice === 0 ? 150 : initialPrice)
-const [imgError, setImgError] = useState(false)
+	const [displayPrice, setDisplayPrice] = useState(initialPrice === 0 ? 150 : initialPrice)
+	const [resolvedImageUrl, setResolvedImageUrl] = useState(initialImage)
+	const [imgError, setImgError] = useState(false)
 
-useEffect(() => {
-	setResolvedImageUrl(initialNormalizedImageUrl)
-	setImgError(false)
-}, [initialNormalizedImageUrl, productId])
+	useEffect(() => {
+		setResolvedImageUrl(initialImage)
+		setImgError(false)
+	}, [initialImage, productId])
 
-useEffect(() => {
-	if (initialPrice > 0 && initialPrice < 40) {
+	useEffect(() => {
+		if (initialPrice > 0 && initialPrice < 40) {
+			fetch(`/api/product/${productId}?debug=1`, { cache: 'no-store' })
+				.then(res => res.json())
+				.then(json => {
+					if (json?.success && json?.data?.price && Number(json.data.price) > displayPrice) {
+						setDisplayPrice(Number(json.data.price))
+					}
+				})
+				.catch(() => {})
+		}
+	}, [productId, initialPrice, displayPrice])
+
+	useEffect(() => {
+		const needImage = !resolvedImageUrl || resolvedImageUrl.trim() === ''
+
+		if (!needImage) return
+
+		let cancelled = false
+
 		fetch(`/api/product/${productId}?debug=1`, { cache: 'no-store' })
 			.then(res => res.json())
 			.then(json => {
-				if (json.success && json.data?.price && json.data.price > displayPrice) {
-					setDisplayPrice(json.data.price)
+				if (cancelled || !json?.success || !json?.data) return
+
+				const data = json.data
+				const fallbackImage =
+					safeImage(data.image) ||
+					(Array.isArray(data.images) ? safeImage(data.images[0]) : '') ||
+					(Array.isArray(data.skuOptions) && data.skuOptions.length > 0
+						? safeImage(data.skuOptions[0]?.image)
+						: '')
+
+				if (fallbackImage) {
+					setResolvedImageUrl(fallbackImage)
+					setImgError(false)
 				}
 			})
 			.catch(() => {})
+
+		return () => {
+			cancelled = true
+		}
+	}, [productId, resolvedImageUrl])
+
+	const displaySales = useMemo(() => {
+		if (sales !== undefined && sales !== null && sales !== '') return sales
+		return 0
+	}, [sales])
+
+	const displayRating = useMemo(() => {
+		if (rating !== undefined && rating !== null && rating !== '') return rating
+		return '4.8'
+	}, [rating])
+
+	const handleCartClick = (e: React.MouseEvent) => {
+		e.preventDefault()
+		e.stopPropagation()
+
+		if (inCart) {
+			removeItem(productId)
+		} else {
+			addItem({
+				productId,
+				title,
+				price: displayPrice.toString(),
+				imageUrl: resolvedImageUrl || imageUrl || '',
+				source: source || '1688'
+			})
+		}
 	}
-}, [productId, initialPrice, displayPrice])
 
-useEffect(() => {
-	const needHydrateImage = !resolvedImageUrl || resolvedImageUrl.trim() === ''
+	const handleToggleFavorite = (e: React.MouseEvent) => {
+		e.preventDefault()
+		e.stopPropagation()
 
-	if (!needHydrateImage) return
-
-	let cancelled = false
-
-	fetch(`/api/product/${productId}?debug=1`, { cache: 'no-store' })
-		.then(res => res.json())
-		.then(json => {
-			if (cancelled || !json?.success || !json?.data) return
-
-			const data = json.data
-			const fallbackImage =
-				safeNormalizeImage(data.image) ||
-				safeNormalizeImage(Array.isArray(data.images) ? data.images[0] : '') ||
-				''
-
-			if (fallbackImage) {
-				setResolvedImageUrl(fallbackImage)
-			}
-		})
-		.catch(() => {})
-
-	return () => {
-		cancelled = true
+		if (favorite) {
+			removeFavorite(productId)
+		} else {
+			addFavorite({
+				productId,
+				title,
+				price: displayPrice.toString(),
+				imageUrl: resolvedImageUrl || imageUrl || '',
+				source: source || '1688'
+			})
+		}
 	}
-}, [productId, resolvedImageUrl])
 
-const displaySales = useMemo(() => {
-	if (sales !== undefined && sales !== null && sales !== '') return sales
-	return 0
-}, [sales])
+	const shouldShowFallback = imgError || !resolvedImageUrl || resolvedImageUrl === '/no-image.jpg'
 
-const displayRating = useMemo(() => {
-	if (rating !== undefined && rating !== null && rating !== '') return rating
-	return '4.8'
-}, [rating])
+	return (
+		<div className="group flex h-full flex-col overflow-hidden rounded-xl border border-gray-100 bg-white transition-all duration-300 hover:border-green-100 hover:shadow-xl active:scale-[0.99]">
+			<div className="relative aspect-square flex-shrink-0 overflow-hidden bg-gray-50">
+				<Link href={`/product/${productId}`} className="block h-full w-full">
+					{!shouldShowFallback ? (
+						<Image
+							src={resolvedImageUrl}
+							alt={title || 'Товар'}
+							fill
+							className="object-cover transition-transform duration-500 group-hover:scale-105"
+							sizes="(max-width: 768px) 50vw, 25vw"
+							loading="lazy"
+							unoptimized
+							onError={() => {
+								if (!imgError) {
+									fetch(`/api/product/${productId}?debug=1`, { cache: 'no-store' })
+										.then(res => res.json())
+										.then(json => {
+											if (!json?.success || !json?.data) {
+												setImgError(true)
+												return
+											}
 
-const handleCartClick = (e: React.MouseEvent) => {
-	e.preventDefault()
-	e.stopPropagation()
+											const data = json.data
+											const retryImage =
+												(Array.isArray(data.images) ? safeImage(data.images[0]) : '') ||
+												(Array.isArray(data.skuOptions) && data.skuOptions.length > 0
+													? safeImage(data.skuOptions[0]?.image)
+													: '') ||
+												safeImage(data.image)
 
-	if (inCart) {
-		removeItem(productId)
-	} else {
-		addItem({
-			productId,
-			title,
-			price: displayPrice.toString(),
-			imageUrl: resolvedImageUrl || imageUrl || '',
-			source: source || '1688'
-		})
-	}
-}
+											if (retryImage && retryImage !== resolvedImageUrl) {
+												setResolvedImageUrl(retryImage)
+												return
+											}
 
-const handleToggleFavorite = (e: React.MouseEvent) => {
-	e.preventDefault()
-	e.stopPropagation()
+											setImgError(true)
+										})
+										.catch(() => setImgError(true))
+								}
+							}}
+						/>
+					) : (
+						<div className="flex h-full items-center justify-center text-xs text-gray-400">
+							Нет фото
+						</div>
+					)}
+				</Link>
 
-	if (favorite) {
-		removeFavorite(productId)
-	} else {
-		addFavorite({
-			productId,
-			title,
-			price: displayPrice.toString(),
-			imageUrl: resolvedImageUrl || imageUrl || '',
-			source: source || '1688'
-		})
-	}
-}
-
-const shouldShowFallback =
-	imgError || !resolvedImageUrl || resolvedImageUrl === '/no-image.jpg'
-
-return (
-	<div className="group flex h-full flex-col overflow-hidden rounded-xl border border-gray-100 bg-white transition-all duration-300 hover:border-green-100 hover:shadow-xl active:scale-[0.99]">
-		<div className="relative aspect-square flex-shrink-0 overflow-hidden bg-gray-50">
-			<Link href={`/product/${productId}`} className="block h-full w-full">
-				{!shouldShowFallback ? (
-					<Image
-						src={resolvedImageUrl}
-						alt={title || 'Товар'}
-						fill
-						className="object-cover transition-transform duration-500 group-hover:scale-105"
-						sizes="(max-width: 768px) 50vw, 25vw"
-						loading="lazy"
-						unoptimized
-						onError={() => setImgError(true)}
-					/>
-				) : (
-					<div className="flex h-full items-center justify-center text-xs text-gray-400">
-						Нет фото
+				{source && (
+					<div className="absolute left-0 top-0">
+						<SourceBadge source={source} />
 					</div>
 				)}
-			</Link>
-
-			{source && (
-				<div className="absolute left-0 top-0">
-					<SourceBadge source={source} />
-				</div>
-			)}
-
-			<button
-				onClick={handleToggleFavorite}
-				className={`absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-sm shadow-sm transition-all active:scale-90 ${
-					favorite
-						? 'border border-red-100 bg-red-50 text-red-500'
-						: 'bg-white/90 text-gray-400 hover:text-red-500'
-				}`}
-				aria-label={favorite ? 'Убрать из избранного' : 'Добавить в избранное'}
-			>
-				<Heart size={16} className={favorite ? 'fill-red-500 text-red-500' : ''} />
-			</button>
-		</div>
-
-		<div className="flex flex-1 flex-col justify-between gap-2 p-3">
-			<Link href={`/product/${productId}`} className="flex flex-1 flex-col gap-1.5">
-				<h3
-					className="line-clamp-2 text-xs font-medium leading-tight text-gray-800 transition-colors group-hover:text-[#0f6b46] sm:text-sm"
-					title={title}
-				>
-					{title || 'Без названия'}
-				</h3>
-
-				<div className="mt-auto flex items-center gap-1.5 text-[10px] text-gray-400 sm:text-xs">
-					<span className="font-medium text-amber-500">★ {displayRating}</span>
-					<span>•</span>
-					<span>{displaySales}+ купили</span>
-				</div>
-			</Link>
-
-			<div className="mt-1 flex items-center justify-between border-t border-gray-50 pt-2">
-				<span className="text-sm font-bold text-[#0f6b46] transition-all duration-300 sm:text-lg">
-					{displayPrice.toLocaleString('ru-RU')} ₽
-				</span>
 
 				<button
-					onClick={handleCartClick}
-					className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full transition-all active:scale-90 ${
-						inCart
-							? 'border border-green-100 bg-green-50 text-[#0f6b46]'
-							: 'bg-[#0f6b46] text-white shadow-sm hover:bg-[#0a4e32]'
+					onClick={handleToggleFavorite}
+					className={`absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-sm shadow-sm transition-all active:scale-90 ${
+						favorite
+							? 'border border-red-100 bg-red-50 text-red-500'
+							: 'bg-white/90 text-gray-400 hover:text-red-500'
 					}`}
-					aria-label={inCart ? 'Убрать из корзины' : 'Добавить в корзину'}
-					title={inCart ? 'Убрать из корзины' : 'Добавить в корзину'}
+					aria-label={favorite ? 'Убрать из избранного' : 'Добавить в избранное'}
 				>
-					<ShoppingCart size={16} className={inCart ? 'fill-current' : ''} />
+					<Heart size={16} className={favorite ? 'fill-red-500 text-red-500' : ''} />
 				</button>
 			</div>
+
+			<div className="flex flex-1 flex-col justify-between gap-2 p-3">
+				<Link href={`/product/${productId}`} className="flex flex-1 flex-col gap-1.5">
+					<h3
+						className="line-clamp-2 text-xs font-medium leading-tight text-gray-800 transition-colors group-hover:text-[#0f6b46] sm:text-sm"
+						title={title}
+					>
+						{title || 'Без названия'}
+					</h3>
+
+					<div className="mt-auto flex items-center gap-1.5 text-[10px] text-gray-400 sm:text-xs">
+						<span className="font-medium text-amber-500">★ {displayRating}</span>
+						<span>•</span>
+						<span>{displaySales}+ купили</span>
+					</div>
+				</Link>
+
+				<div className="mt-1 flex items-center justify-between border-t border-gray-50 pt-2">
+					<span className="text-sm font-bold text-[#0f6b46] transition-all duration-300 sm:text-lg">
+						{displayPrice.toLocaleString('ru-RU')} ₽
+					</span>
+
+					<button
+						onClick={handleCartClick}
+						className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full transition-all active:scale-90 ${
+							inCart
+								? 'border border-green-100 bg-green-50 text-[#0f6b46]'
+								: 'bg-[#0f6b46] text-white shadow-sm hover:bg-[#0a4e32]'
+						}`}
+						aria-label={inCart ? 'Убрать из корзины' : 'Добавить в корзину'}
+						title={inCart ? 'Убрать из корзины' : 'Добавить в корзину'}
+					>
+						<ShoppingCart size={16} className={inCart ? 'fill-current' : ''} />
+					</button>
+				</div>
+			</div>
 		</div>
-	</div>
 	)
 }
