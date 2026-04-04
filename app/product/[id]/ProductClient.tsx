@@ -16,18 +16,13 @@ import { toast } from 'sonner'
 function useMediaQuery(query: string): boolean {
     const subscribe = useCallback(
         (callback: () => void) => {
-            if (typeof window === 'undefined') {
-                return () => {}
-            }
+            if (typeof window === 'undefined') return () => {}
 
-            const mediaQueryList: MediaQueryList = window.matchMedia(query)
+            const mediaQueryList = window.matchMedia(query)
             const handler = () => callback()
 
             mediaQueryList.addEventListener('change', handler)
-
-            return () => {
-                mediaQueryList.removeEventListener('change', handler)
-            }
+            return () => mediaQueryList.removeEventListener('change', handler)
         },
         [query]
     )
@@ -52,6 +47,12 @@ function getValidImage(img: string | undefined | null): string {
 function getValidVideo(url: string | undefined | null): string {
     if (!url) return ''
     return normalizeVideoUrl(url)
+}
+
+function getSafeColorHex(color: string): string {
+    const hex = getColorHex(color)
+    if (!hex || hex === 'transparent') return '#e5e7eb'
+    return hex
 }
 
 type MediaItem =
@@ -160,7 +161,7 @@ async function addToHistory(
             body: JSON.stringify({ action, productId, productTitle, productPrice, productImage })
         })
         if (res.status === 401) return
-    } catch (e) {
+    } catch {
         // ignore
     }
 }
@@ -173,6 +174,7 @@ interface ProductClientProps {
 export function ProductClient({ product, productId }: ProductClientProps) {
     const router = useRouter()
     const isMobile = useMediaQuery('(max-width: 767px)')
+
     const [selectedImage, setSelectedImage] = useState(0)
     const [basePrice, setBasePrice] = useState(product.price)
     const [videoError, setVideoError] = useState(false)
@@ -184,6 +186,10 @@ export function ProductClient({ product, productId }: ProductClientProps) {
     const [selectedOtherAttributes, setSelectedOtherAttributes] = useState<Record<string, string>>({})
     const [quantity, setQuantity] = useState(1)
     const [selectedVariants, setSelectedVariants] = useState<SelectedVariant[]>([])
+
+    const [failedMainImages, setFailedMainImages] = useState<Record<string, boolean>>({})
+    const [failedThumbImages, setFailedThumbImages] = useState<Record<string, boolean>>({})
+    const [failedColorImages, setFailedColorImages] = useState<Record<string, boolean>>({})
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -202,12 +208,11 @@ export function ProductClient({ product, productId }: ProductClientProps) {
         }
     }, [productId, product, basePrice])
 
-    const { colors, sizes, colorKey, sizeKey, otherAttributes, colorImages } = useMemo(() => {
+    const { colors, sizes, colorKey, sizeKey, otherAttributes } = useMemo(() => {
         const skuOptions = product.skuOptions || []
         const colorMap = new Map<string, string>()
         const sizeMap = new Map<string, string>()
         const otherAttributesMap = new Map<string, Set<string>>()
-        const colorImageMap = new Map<string, string>()
         let foundColorKey = 'Цвет'
         let foundSizeKey = 'Размер'
 
@@ -220,7 +225,6 @@ export function ProductClient({ product, productId }: ProductClientProps) {
                     const normalized = normalizeColor(value)
                     if (!colorMap.has(normalized)) colorMap.set(normalized, value)
                     foundColorKey = key
-                    if (sku.image && !colorImageMap.has(value)) colorImageMap.set(value, sku.image)
                 } else if (
                     keyLower.includes('size') ||
                     keyLower.includes('尺码') ||
@@ -245,8 +249,7 @@ export function ProductClient({ product, productId }: ProductClientProps) {
             otherAttributes: Array.from(otherAttributesMap.entries()).map(([key, valuesSet]) => ({
                 key,
                 values: Array.from(valuesSet)
-            })),
-            colorImages: Object.fromEntries(colorImageMap)
+            }))
         }
     }, [product.skuOptions])
 
@@ -280,36 +283,11 @@ export function ProductClient({ product, productId }: ProductClientProps) {
     const currentPrice = selectedSku?.price || basePrice
     const currentStock = selectedSku?.stock || 0
 
-    const getColorPreviewImage = useCallback(
-        (color: string) => {
-            const directImage = colorImages[color]
-            if (directImage) return getValidImage(directImage)
-
-            const exactSku = product.skuOptions?.find(sku => {
-                const attrValue = sku.attributes[colorKey]
-                return attrValue === color && sku.image
-            })
-            if (exactSku?.image) return getValidImage(exactSku.image)
-
-            const normalizedTarget = normalizeColor(color)
-            const normalizedSku = product.skuOptions?.find(sku => {
-                const attrValue = sku.attributes[colorKey]
-                return !!attrValue && normalizeColor(attrValue) === normalizedTarget && !!sku.image
-            })
-            if (normalizedSku?.image) return getValidImage(normalizedSku.image)
-
-            return getValidImage(product.image)
-        },
-        [colorImages, product.image, product.skuOptions, colorKey]
-    )
-
     const variantSummaryText = useMemo(() => {
         const parts = [
             selectedColor,
             selectedSize,
-            ...otherAttributes
-                .map(attr => selectedOtherAttributes[attr.key])
-                .filter(Boolean)
+            ...otherAttributes.map(attr => selectedOtherAttributes[attr.key]).filter(Boolean)
         ].filter(Boolean)
 
         return parts.length > 0 ? parts.join(' • ') : 'Параметры не выбраны'
@@ -360,10 +338,22 @@ export function ProductClient({ product, productId }: ProductClientProps) {
             combinedImages.unshift(skuImage)
         }
 
-        const normalizedImages = combinedImages.map(getValidImage).filter(Boolean)
+        const normalizedImages = combinedImages
+            .map(getValidImage)
+            .filter(Boolean)
+            .filter((url, index, arr) => arr.indexOf(url) === index)
+            .filter(url => url !== '/no-image.jpg')
+
         const fallbackPoster = getValidImage(skuImage || product.image || normalizedImages[0] || '/no-image.jpg')
 
         const items: MediaItem[] = []
+
+        normalizedImages.forEach(url => {
+            items.push({
+                type: 'image',
+                url
+            })
+        })
 
         if (product.videos && product.videos.length > 0) {
             const videoUrl = getValidVideo(product.videos[0])
@@ -376,21 +366,32 @@ export function ProductClient({ product, productId }: ProductClientProps) {
             }
         }
 
-        normalizedImages.forEach(url => {
+        if (items.length === 0) {
             items.push({
                 type: 'image',
-                url
+                url: getValidImage(product.image)
             })
-        })
+        }
 
         return items
     }, [product.images, product.descriptionHtml, selectedSku, product.videos, product.image])
+
+    useEffect(() => {
+        if (selectedImage >= mediaItems.length) {
+            setSelectedImage(0)
+        }
+    }, [mediaItems, selectedImage])
 
     const activeMedia = mediaItems[selectedImage]
     const videoPoster =
         activeMedia && activeMedia.type === 'video'
             ? activeMedia.poster
             : getValidImage(selectedSku?.image || product.image)
+
+    const activeMediaKey =
+        activeMedia?.type === 'video'
+            ? `video:${activeMedia.url}`
+            : `image:${activeMedia?.url || product.image}`
 
     const { addItem, removeItem, items } = useCartStore()
 
@@ -444,6 +445,9 @@ export function ProductClient({ product, productId }: ProductClientProps) {
             requestAnimationFrame(() => setSelectedImage(0))
         }
         setVideoError(false)
+        setFailedMainImages({})
+        setFailedThumbImages({})
+        setFailedColorImages({})
     }, [selectedSku])
 
     const handleRemoveVariant = (variantKey: string) => {
@@ -584,7 +588,7 @@ export function ProductClient({ product, productId }: ProductClientProps) {
         taobao: 'bg-orange-500',
         '1688': 'bg-[#0f6b46]',
         poizon: 'bg-black'
-    }
+    } as const
 
     const SelectorsContent = () => (
         <>
@@ -595,42 +599,64 @@ export function ProductClient({ product, productId }: ProductClientProps) {
                         {selectedColor && <span className="ml-2 font-normal text-gray-500">({selectedColor})</span>}
                     </label>
 
-                    <div className="flex flex-wrap gap-3">
+                    <div className="flex flex-wrap gap-2">
                         {colors.map(color => {
                             const isSelected = selectedColor === color
-                            const previewImage = getColorPreviewImage(color)
-                            const hasPreview = previewImage && previewImage !== '/no-image.jpg'
                             const badgeCount = getOptionBadgeCount('color', color)
+
+                            const previewImage = failedColorImages[color]
+                                ? ''
+                                : product.skuOptions?.find(
+                                      sku => sku.attributes[colorKey] === color && sku.image
+                                  )?.image ||
+                                  product.skuOptions?.find(
+                                      sku =>
+                                          sku.attributes[colorKey] &&
+                                          normalizeColor(sku.attributes[colorKey]) === normalizeColor(color) &&
+                                          sku.image
+                                  )?.image ||
+                                  ''
+
+                            const colorHex = getSafeColorHex(color)
+                            const showPlainColor = !previewImage && colorHex !== '#e5e7eb'
 
                             return (
                                 <button
                                     key={color}
                                     onClick={() => setSelectedColor(color)}
                                     type="button"
-                                    className={`relative h-14 w-14 overflow-hidden rounded-xl border-2 transition-all active:scale-95 ${
+                                    title={color}
+                                    className={`relative flex h-[52px] w-[52px] items-center justify-center overflow-hidden rounded-xl border-2 bg-white transition-all active:scale-95 ${
                                         isSelected
                                             ? 'border-[#0f6b46] ring-2 ring-green-100'
                                             : 'border-gray-200 hover:border-gray-400'
                                     }`}
                                 >
-                                    {hasPreview ? (
+                                    {previewImage ? (
                                         <Image
-                                            src={previewImage}
+                                            src={getValidImage(previewImage)}
                                             alt={color}
                                             fill
                                             className="object-cover"
                                             unoptimized
+                                            onError={() =>
+                                                setFailedColorImages(prev => ({
+                                                    ...prev,
+                                                    [color]: true
+                                                }))
+                                            }
                                         />
+                                    ) : showPlainColor ? (
+                                        <div className="h-full w-full" style={{ backgroundColor: colorHex }} />
                                     ) : (
-                                        <div
-                                            className="h-full w-full"
-                                            style={{ backgroundColor: getColorHex(color) }}
-                                        />
+                                        <div className="flex h-full w-full items-center justify-center bg-gray-100">
+                                            <div className="h-6 w-6 rounded-full border border-gray-300 bg-white" />
+                                        </div>
                                     )}
 
                                     {isSelected && (
-                                        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                                            <Check className="h-5 w-5 stroke-[3] text-white" />
+                                        <div className="absolute inset-0 flex items-center justify-center bg-black/10">
+                                            <Check className="h-4 w-4 text-white drop-shadow" />
                                         </div>
                                     )}
 
@@ -723,7 +749,7 @@ export function ProductClient({ product, productId }: ProductClientProps) {
     )
 
     return (
-        <div className="container mx-auto px-4 py-8 pb-32 md:pb-8 text-gray-900">
+        <div className="container mx-auto px-4 py-8 pb-32 text-gray-900 md:pb-8">
             <Link href="/" className="mb-4 flex items-center gap-2 font-medium text-[#0f6b46] hover:underline">
                 <ArrowLeft size={20} />
                 <span>На главную</span>
@@ -738,7 +764,7 @@ export function ProductClient({ product, productId }: ProductClientProps) {
                                     src={videoPoster}
                                     alt="Видео превью"
                                     fill
-                                    className="object-contain bg-gray-100"
+                                    className="bg-gray-100 object-contain"
                                     sizes="(max-width: 768px) 100vw, 50vw"
                                     priority
                                     unoptimized
@@ -748,7 +774,7 @@ export function ProductClient({ product, productId }: ProductClientProps) {
                                     key={activeMedia.url}
                                     controls
                                     playsInline
-                                    preload="none"
+                                    preload="metadata"
                                     poster={videoPoster}
                                     className="h-full w-full object-contain"
                                     onError={() => setVideoError(true)}
@@ -757,15 +783,31 @@ export function ProductClient({ product, productId }: ProductClientProps) {
                                     Ваш браузер не поддерживает видео.
                                 </video>
                             )
+                        ) : failedMainImages[activeMediaKey] ? (
+                            <Image
+                                src={getValidImage(product.image)}
+                                alt={product.title || 'Товар'}
+                                fill
+                                className="bg-gray-100 object-contain"
+                                sizes="(max-width: 768px) 100vw, 50vw"
+                                priority
+                                unoptimized
+                            />
                         ) : (
                             <Image
                                 src={getValidImage(activeMedia?.url || product.image)}
                                 alt={product.title || 'Товар'}
                                 fill
-                                className="object-cover bg-gray-100"
+                                className="bg-gray-100 object-contain"
                                 sizes="(max-width: 768px) 100vw, 50vw"
                                 priority
                                 unoptimized
+                                onError={() =>
+                                    setFailedMainImages(prev => ({
+                                        ...prev,
+                                        [activeMediaKey]: true
+                                    }))
+                                }
                             />
                         )}
 
@@ -782,56 +824,70 @@ export function ProductClient({ product, productId }: ProductClientProps) {
 
                     {mediaItems.length > 1 && (
                         <div className="scrollbar-none flex gap-2 overflow-x-auto pb-2">
-                            {mediaItems.map((item, idx) => (
-                                <button
-                                    key={`${item.type}-${idx}`}
-                                    onClick={() => {
-                                        setSelectedImage(idx)
-                                        setVideoError(false)
-                                    }}
-                                    type="button"
-                                    className={`relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-md transition-all border-2 active:scale-95 ${
-                                        idx === selectedImage
-                                            ? 'border-[#0f6b46]'
-                                            : 'border-transparent bg-gray-50'
-                                    }`}
-                                >
-                                    {item.type === 'video' ? (
-                                        <div className="relative flex h-full w-full items-center justify-center bg-gray-900">
+                            {mediaItems.map((item, idx) => {
+                                const thumbKey = `${item.type}:${item.url}`
+
+                                return (
+                                    <button
+                                        key={`${item.type}-${idx}`}
+                                        onClick={() => {
+                                            setSelectedImage(idx)
+                                            setVideoError(false)
+                                        }}
+                                        type="button"
+                                        className={`relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-md border-2 transition-all active:scale-95 ${
+                                            idx === selectedImage
+                                                ? 'border-[#0f6b46]'
+                                                : 'border-transparent bg-gray-50'
+                                        }`}
+                                    >
+                                        {item.type === 'video' ? (
+                                            <div className="relative flex h-full w-full items-center justify-center bg-gray-900">
+                                                <Image
+                                                    src={item.poster}
+                                                    alt="Превью видео"
+                                                    fill
+                                                    className="object-cover opacity-70"
+                                                    sizes="80px"
+                                                    loading="lazy"
+                                                    unoptimized
+                                                />
+                                                <div className="absolute inset-0 flex items-center justify-center">
+                                                    <div className="rounded-full bg-black/60 p-2">
+                                                        <svg
+                                                            className="ml-0.5 h-4 w-4 text-white"
+                                                            fill="currentColor"
+                                                            viewBox="0 0 20 20"
+                                                        >
+                                                            <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                                                        </svg>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ) : failedThumbImages[thumbKey] ? (
+                                            <div className="flex h-full w-full items-center justify-center bg-gray-100 text-[10px] text-gray-400">
+                                                Нет фото
+                                            </div>
+                                        ) : (
                                             <Image
-                                                src={item.poster}
-                                                alt="Превью видео"
+                                                src={getValidImage(item.url)}
+                                                alt={`${product.title} ${idx + 1}`}
                                                 fill
-                                                className="object-cover opacity-70"
+                                                className="object-cover"
                                                 sizes="80px"
                                                 loading="lazy"
                                                 unoptimized
+                                                onError={() =>
+                                                    setFailedThumbImages(prev => ({
+                                                        ...prev,
+                                                        [thumbKey]: true
+                                                    }))
+                                                }
                                             />
-                                            <div className="absolute inset-0 flex items-center justify-center">
-                                                <div className="rounded-full bg-black/60 p-2">
-                                                    <svg
-                                                        className="ml-0.5 h-4 w-4 text-white"
-                                                        fill="currentColor"
-                                                        viewBox="0 0 20 20"
-                                                    >
-                                                        <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
-                                                    </svg>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <Image
-                                            src={getValidImage(item.url)}
-                                            alt={`${product.title} ${idx + 1}`}
-                                            fill
-                                            className="object-cover"
-                                            sizes="80px"
-                                            loading="lazy"
-                                            unoptimized
-                                        />
-                                    )}
-                                </button>
-                            ))}
+                                        )}
+                                    </button>
+                                )
+                            })}
                         </div>
                     )}
                 </div>
@@ -891,9 +947,7 @@ export function ProductClient({ product, productId }: ProductClientProps) {
                                                 <td className="w-1/3 border-r border-gray-200 px-4 py-3 align-top font-medium text-gray-500">
                                                     {key}
                                                 </td>
-                                                <td className="px-4 py-3 align-top text-gray-900">
-                                                    {String(value)}
-                                                </td>
+                                                <td className="px-4 py-3 align-top text-gray-900">{String(value)}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -910,7 +964,7 @@ export function ProductClient({ product, productId }: ProductClientProps) {
                     onClick={() => setIsDrawerOpen(false)}
                 >
                     <div
-                        className="flex max-h-[90vh] w-full flex-col overflow-hidden rounded-t-[28px] bg-white animate-in slide-in-from-bottom duration-300"
+                        className="animate-in slide-in-from-bottom flex max-h-[90vh] w-full flex-col overflow-hidden rounded-t-[28px] bg-white duration-300"
                         onClick={e => e.stopPropagation()}
                     >
                         <div className="border-b border-gray-100 p-4">
@@ -938,9 +992,7 @@ export function ProductClient({ product, productId }: ProductClientProps) {
                                         <p className="mt-1 text-sm font-semibold text-gray-900">
                                             {variantSummaryText}
                                         </p>
-                                        <p className="mt-1 text-xs text-gray-500">
-                                            Количество: {quantity} шт.
-                                        </p>
+                                        <p className="mt-1 text-xs text-gray-500">Количество: {quantity} шт.</p>
                                     </div>
                                 </div>
 
@@ -973,7 +1025,9 @@ export function ProductClient({ product, productId }: ProductClientProps) {
                                     </div>
                                     <div className="shrink-0 text-right">
                                         <p className="text-sm font-bold text-[#0f6b46]">{quantity} шт.</p>
-                                        <p className="text-xs text-gray-500">{currentPrice.toLocaleString('ru-RU')} ₽ / шт.</p>
+                                        <p className="text-xs text-gray-500">
+                                            {currentPrice.toLocaleString('ru-RU')} ₽ / шт.
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -994,7 +1048,7 @@ export function ProductClient({ product, productId }: ProductClientProps) {
                                                 className="flex items-start justify-between rounded-2xl border border-gray-200 bg-gray-50 p-3"
                                             >
                                                 <div className="min-w-0 pr-3">
-                                                    <p className="text-sm font-semibold text-gray-900 break-words">
+                                                    <p className="break-words text-sm font-semibold text-gray-900">
                                                         {variant.label}
                                                     </p>
                                                     <p className="mt-1 text-xs text-gray-500">
@@ -1020,7 +1074,7 @@ export function ProductClient({ product, productId }: ProductClientProps) {
                             <div className="space-y-3">
                                 <Button
                                     type="button"
-                                    className="w-full rounded-xl bg-[#0f6b46] py-6 text-base font-bold text-white shadow-lg active:scale-95 transition-all hover:bg-[#0a4e32]"
+                                    className="w-full rounded-xl bg-[#0f6b46] py-6 text-base font-bold text-white shadow-lg transition-all hover:bg-[#0a4e32] active:scale-95"
                                     onClick={handleDrawerSubmit}
                                 >
                                     В корзину
@@ -1060,9 +1114,7 @@ export function ProductClient({ product, productId }: ProductClientProps) {
                     >
                         <div className="flex items-center justify-center gap-2">
                             <ShoppingBag size={20} />
-                            <span className="font-bold">
-                                {isInCart && !isMobile ? 'В корзине' : 'В корзину'}
-                            </span>
+                            <span className="font-bold">{isInCart && !isMobile ? 'В корзине' : 'В корзину'}</span>
                         </div>
                     </Button>
 
@@ -1074,14 +1126,11 @@ export function ProductClient({ product, productId }: ProductClientProps) {
                         <div className="flex items-center justify-center gap-2">
                             <Heart size={20} className={isFav ? 'fill-red-500 text-red-500' : ''} />
                             {!isMobile && (
-                                <span className="font-bold">
-                                    {isFav ? 'В избранном' : 'В избранное'}
-                                </span>
+                                <span className="font-bold">{isFav ? 'В избранном' : 'В избранное'}</span>
                             )}
                         </div>
                     </Button>
                 </div>
             </div>
         </div>
-    )
-}
+    )}
