@@ -4,10 +4,6 @@ import { getFromCache, setToCache } from '@/lib/utils/cache'
 import { cnyToRub } from '@/lib/utils/format'
 import { NextRequest, NextResponse } from 'next/server'
 
-/**
- * Обрабатывает description из API.
- * Определяет тип контента и возвращает обработанное значение.
- */
 function processDescription(description: unknown): {
 	plain: string
 	html: string
@@ -57,9 +53,6 @@ function processDescription(description: unknown): {
 	}
 }
 
-/**
- * Экранирует HTML символы
- */
 function escapeHtml(text: string): string {
 	const map: Record<string, string> = {
 		'&': '&amp;',
@@ -71,9 +64,6 @@ function escapeHtml(text: string): string {
 	return text.replace(/[&<>"']/g, m => map[m])
 }
 
-/**
- * Декодирует HTML сущности
- */
 function decodeHtmlEntities(text: string): string {
 	const map: Record<string, string> = {
 		'&amp;': '&',
@@ -86,9 +76,6 @@ function decodeHtmlEntities(text: string): string {
 	return text.replace(/&amp;|&lt;|&gt;|&quot;|&#039;|&nbsp;/g, m => map[m])
 }
 
-/**
- * Определяет, является ли ключ характеристикой цвета или размера
- */
 function isColorOrSizeKey(key: string): boolean {
 	const keyLower = key.toLowerCase()
 	return (
@@ -101,16 +88,26 @@ function isColorOrSizeKey(key: string): boolean {
 	)
 }
 
+function proxifyImage(url?: string): string {
+	if (!url) return ''
+	return `/api/image?url=${encodeURIComponent(url)}`
+}
+
 function normalizeRemoteImage(url: unknown): string | undefined {
 	if (!url) return undefined
 
 	const value = String(url).trim()
 	if (!value) return undefined
 
-	if (value.startsWith('//')) return `https:${value}`
-	if (value.startsWith('http://') || value.startsWith('https://')) return value
+	let normalized = value
 
-	return value
+	if (normalized.startsWith('//')) normalized = `https:${normalized}`
+
+	if (normalized.startsWith('http://') || normalized.startsWith('https://')) {
+		return proxifyImage(normalized)
+	}
+
+	return normalized
 }
 
 function extract1688SkuImage(
@@ -152,7 +149,6 @@ function extract1688SkuImage(
 	return undefined
 }
 
-// Функция преобразования данных 1688 в нужный формат
 function transform1688Product(data: Record<string, unknown>) {
 	const priceInfo = data.priceInfo as Record<string, unknown> | undefined
 
@@ -351,7 +347,6 @@ function transform1688Product(data: Record<string, unknown>) {
 	}
 }
 
-// Функция преобразования данных Taobao в нужный формат
 function transformTaobaoProduct(data: Record<string, unknown>) {
 	const multiLanguageInfo = data.multiLanguageInfo as Record<string, unknown> | undefined
 
@@ -498,7 +493,6 @@ function transformTaobaoProduct(data: Record<string, unknown>) {
 	}
 }
 
-// Функция преобразования данных Poizon в нужный формат
 function transformPoizonProduct(data: Record<string, unknown>) {
 	const priceValueCny = Number(data.authPrice || 0) / 100
 	const priceValue = cnyToRub(priceValueCny)

@@ -15,6 +15,11 @@ function normalizeImage(url: unknown): string {
 	return value
 }
 
+function proxifyImage(url: string): string {
+	if (!url) return ''
+	return `/api/image?url=${encodeURIComponent(url)}`
+}
+
 function getFirstImageFromArray(value: unknown): string {
 	if (!Array.isArray(value) || value.length === 0) return ''
 	return normalizeImage(value[0])
@@ -100,7 +105,7 @@ async function searchTaobao(keyword: string, page: number): Promise<ProductItem[
 						productId: `taobao_${item.itemId}` || `mock_taobao_${Date.now()}`,
 						title: getTaobaoTitle(item),
 						price: cnyToRub(priceCny).toFixed(2),
-						imageUrl: getTaobaoImage(item),
+						imageUrl: proxifyImage(getTaobaoImage(item)),
 						shopName: item.shopName,
 						sales: Number(item.sales || 0),
 						source: 'taobao' as const
@@ -153,7 +158,7 @@ async function search1688(keyword: string, page: number): Promise<ProductItem[]>
 						productId: `1688_${item.offerId}` || `mock_1688_${Date.now()}`,
 						title,
 						price: cnyToRub(priceCny).toFixed(2),
-						imageUrl,
+						imageUrl: proxifyImage(imageUrl),
 						shopName: String(item.companyName || ''),
 						sales: Number(item.monthSold || item.soldOut || 0),
 						source: '1688' as const
@@ -195,7 +200,7 @@ async function searchPoizon(keyword: string, page: number): Promise<ProductItem[
 						productId: `poizon_${item.dwSpuId}` || `mock_poizon_${Date.now()}`,
 						title: String(item.distSpuTitle || item.dwSpuTitle || ''),
 						price: cnyToRub(priceCny).toFixed(2),
-						imageUrl: getPoizonImage(item),
+						imageUrl: proxifyImage(getPoizonImage(item)),
 						shopName: String(item.distBrandName || ''),
 						sales: Number(item.sales || 0),
 						source: 'poizon' as const
@@ -268,7 +273,7 @@ export async function getProductDetails(productId: string): Promise<{
 			productId,
 			title: 'Товар ' + productId,
 			price: '1000',
-			imageUrl: 'https://via.placeholder.com/300',
+			imageUrl: '/api/image?url=' + encodeURIComponent('https://via.placeholder.com/300'),
 			source: productId.startsWith('taobao')
 				? 'taobao'
 				: productId.startsWith('poizon')
