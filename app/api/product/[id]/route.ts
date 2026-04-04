@@ -606,24 +606,38 @@ function transformPoizonProduct(data: Record<string, unknown>) {
 }
 
 export async function GET(request: NextRequest) {
-	const productId = request.nextUrl.pathname.split('/').pop() || ''
+	const rawId = decodeURIComponent(request.nextUrl.pathname.split('/').pop() || '').trim()
 
-	if (!productId) {
+	if (!rawId) {
 		return NextResponse.json({ success: false, error: 'Product ID required' }, { status: 400 })
 	}
 
-	let source: 'taobao' | '1688' | 'poizon' = '1688'
-	if (productId.startsWith('taobao_')) source = 'taobao'
-	if (productId.startsWith('poizon_')) source = 'poizon'
+	let source: 'taobao' | '1688' | 'poizon' | null = null
 
-	const cleanId = productId.replace(/^(taobao_|1688_|poizon_)/, '')
+	if (rawId.startsWith('taobao_')) source = 'taobao'
+	else if (rawId.startsWith('1688_')) source = '1688'
+	else if (rawId.startsWith('poizon_')) source = 'poizon'
+
+	if (!source) {
+		return NextResponse.json(
+			{ success: false, error: `Unknown product source for id: ${rawId}` },
+			{ status: 400 }
+		)
+	}
+
+	const cleanId = rawId.replace(/^(taobao_|1688_|poizon_)/, '')
+	if (!cleanId) {
+		return NextResponse.json(
+			{ success: false, error: `Invalid product id: ${rawId}` },
+			{ status: 400 }
+		)
+	}
 
 	const debug = request.nextUrl.searchParams.get('debug')
-	const cacheKey = `product:${productId}`
+	const cacheKey = `product:${rawId}`
 
-	let cached = null
 	if (!debug) {
-		cached = await getFromCache(cacheKey)
+		const cached = await getFromCache(cacheKey)
 		if (cached) {
 			return NextResponse.json({
 				success: true,
@@ -634,134 +648,76 @@ export async function GET(request: NextRequest) {
 	}
 
 	try {
-		let result
-		let transformedData: Record<string, unknown>
-		let apiError: unknown = undefined
+		let result: unknown
+		let transformedData: Record<string, unknown> | null = null
 
-		try {
-			switch (source) {
-				case 'taobao':
-					result = await getTaobaoProductDetails(cleanId, 'ru')
-					if (result && typeof result === 'object') {
-						const obj = result as Record<string, unknown>
-						if (obj.code === 200 && obj.data) {
-							transformedData = transformTaobaoProduct(obj.data as Record<string, unknown>)
-							await setToCache(cacheKey, transformedData, 1000 * 60 * 5)
-
-							return NextResponse.json({
-								success: true,
-								data: transformedData,
-								_debug: { source, rawData: obj.data }
-							})
-						}
+		switch (source) {
+			case 'taobao': {
+				result = await getTaobaoProductDetails(cleanId, 'ru')
+				if (result && typeof result === 'object') {
+					const obj = result as Record<string, unknown>
+					if (obj.code === 200 && obj.data && typeof obj.data === 'object') {
+						transformedData = transformTaobaoProduct(obj.data as Record<string, unknown>)
 					}
-					break
-
-				case 'poizon':
-					try {
-						result = await getPoizonProductDetail(cleanId)
-						if (result && typeof result === 'object') {
-							const obj = result as Record<string, unknown>
-
-							if (obj.success === true && obj.data) {
-								const innerData = obj.data as Record<string, unknown>
-								if (innerData.code === 200 && innerData.data) {
-									transformedData = transformPoizonProduct(
-										innerData.data as Record<string, unknown>
-									)
-									await setToCache(cacheKey, transformedData, 1000 * 60 * 5)
-									return NextResponse.json({
-										success: true,
-										data: transformedData,
-										_debug: { source, rawData: innerData.data }
-									})
-								}
-							}
-
-							if (obj.code === 200 && obj.data) {
-								transformedData = transformPoizonProduct(obj.data as Record<string, unknown>)
-								await setToCache(cacheKey, transformedData, 1000 * 60 * 5)
-								return NextResponse.json({
-									success: true,
-									data: transformedData,
-									_debug: { source, rawData: obj.data }
-								})
-							}
-
-							if (obj.dwSpuId || obj.distSpuId) {
-								transformedData = transformPoizonProduct(obj)
-								await setToCache(cacheKey, transformedData, 1000 * 60 * 5)
-								return NextResponse.json({
-									success: true,
-									data: transformedData,
-									_debug: { source, rawData: obj }
-								})
-							}
-						}
-					} catch (poizonError) {
-						console.error('[/api/product/[id]] Poizon API error:', poizonError)
-					}
-					break
-
-				default:
-					result = await getProductDetails(cleanId, 'ru')
-					if (result && typeof result === 'object') {
-						const obj = result as Record<string, unknown>
-						if (obj.code === 200 && obj.data) {
-							transformedData = transform1688Product(obj.data as Record<string, unknown>)
-							await setToCache(cacheKey, transformedData, 1000 * 60 * 5)
-
-							return NextResponse.json({
-								success: true,
-								data: transformedData,
-								_debug: { source, rawData: obj.data }
-							})
-						}
-					}
+				}
+				break
 			}
-		} catch (err) {
-			apiError = err
-			console.error('[/api/product/[id]] API error:', err)
+
+			case 'poizon': {
+				result = await getPoizonProductDetail(cleanId)
+				if (result && typeof result === 'object') {
+					const obj = result as Record<string, unknown>
+
+					if (obj.success === true && obj.data && typeof obj.data === 'object') {
+						const innerData = obj.data as Record<string, unknown>
+						if (innerData.code === 200 && innerData.data && typeof innerData.data === 'object') {
+							transformedData = transformPoizonProduct(innerData.data as Record<string, unknown>)
+							break
+						}
+					}
+
+					if (obj.code === 200 && obj.data && typeof obj.data === 'object') {
+						transformedData = transformPoizonProduct(obj.data as Record<string, unknown>)
+						break
+					}
+
+					if (obj.dwSpuId || obj.distSpuId) {
+						transformedData = transformPoizonProduct(obj)
+						break
+					}
+				}
+				break
+			}
+
+			case '1688': {
+				result = await getProductDetails(cleanId, 'ru')
+				if (result && typeof result === 'object') {
+					const obj = result as Record<string, unknown>
+					if (obj.code === 200 && obj.data && typeof obj.data === 'object') {
+						transformedData = transform1688Product(obj.data as Record<string, unknown>)
+					}
+				}
+				break
+			}
 		}
 
-		const mockData = {
-			productId,
-			title: `Товар ${cleanId} с ${source === 'taobao' ? 'Taobao' : source === 'poizon' ? 'Poizon' : '1688'}`,
-			price: Math.floor(Math.random() * 5000) + 500,
-			originalPrice: Math.floor(Math.random() * 8000) + 1000,
-			image: 'https://via.placeholder.com/600x400?text=Product',
-			images: [
-				'https://via.placeholder.com/600x400?text=Product+1',
-				'https://via.placeholder.com/600x400?text=Product+2',
-				'https://via.placeholder.com/600x400?text=Product+3'
-			],
-			shopName: `Магазин ${source}`,
-			sales: Math.floor(Math.random() * 10000),
-			source,
-			description:
-				'Подробное описание товара. Это демонстрационные данные, так как API временно недоступен.',
-			specifications: {
-				'Страна производитель': 'Китай',
-				Материал: 'Текстиль',
-				Сезон: 'Всесезонный'
-			},
-			skuOptions: [
-				{ skuId: '1', price: 1500, stock: 100, attributes: { Color: 'Red', Size: 'S' } },
-				{ skuId: '2', price: 1500, stock: 80, attributes: { Color: 'Red', Size: 'M' } },
-				{ skuId: '3', price: 1500, stock: 50, attributes: { Color: 'Red', Size: 'L' } },
-				{ skuId: '4', price: 1600, stock: 90, attributes: { Color: 'Blue', Size: 'S' } },
-				{ skuId: '5', price: 1600, stock: 120, attributes: { Color: 'Blue', Size: 'M' } },
-				{ skuId: '6', price: 1600, stock: 60, attributes: { Color: 'Blue', Size: 'L' } },
-				{ skuId: '7', price: 1700, stock: 40, attributes: { Color: 'Black', Size: 'S' } },
-				{ skuId: '8', price: 1700, stock: 70, attributes: { Color: 'Black', Size: 'M' } },
-				{ skuId: '9', price: 1700, stock: 30, attributes: { Color: 'Black', Size: 'L' } }
-			]
+		if (!transformedData) {
+			return NextResponse.json(
+				{
+					success: false,
+					error: 'Не удалось загрузить данные товара',
+					_debug: { source, rawId, cleanId }
+				},
+				{ status: 502 }
+			)
 		}
+
+		await setToCache(cacheKey, transformedData, 1000 * 60 * 5)
 
 		return NextResponse.json({
 			success: true,
-			data: mockData,
-			_debug: { source, mock: true, error: String(apiError) }
+			data: transformedData,
+			_debug: { source, cached: false }
 		})
 	} catch (error) {
 		console.error('[/api/product/[id]] Error:', error)

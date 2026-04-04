@@ -2,13 +2,12 @@ import { ProductDetail } from '@/types/product'
 import Link from 'next/link'
 import { ProductClient } from './ProductClient'
 
-// ISR: регенерация страницы каждые 5 минут
-export const revalidate = 300
-
 async function fetchProduct(productId: string): Promise<{ success: boolean; data?: ProductDetail; error?: string }> {
 	try {
-		const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/product/${productId}`, {
-			next: { revalidate: 300 }
+		const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+
+		const res = await fetch(`${baseUrl}/api/product/${productId}?debug=1`, {
+			cache: 'no-store'
 		})
 
 		if (!res.ok) {
@@ -38,13 +37,13 @@ async function fetchProduct(productId: string): Promise<{ success: boolean; data
 }
 
 interface ProductPageProps {
-	params: {
+	params: Promise<{
 		id: string
-	}
+	}>
 }
 
 export default async function ProductPage({ params }: ProductPageProps) {
-	const productId = params.id
+	const { id: productId } = await params
 	const { success, data: product, error } = await fetchProduct(productId)
 
 	if (!success || !product) {
