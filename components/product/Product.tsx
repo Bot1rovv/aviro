@@ -12,6 +12,7 @@ interface ProductProps extends Omit<ProductItem, 'sales' | 'rating'> {
 	sales?: string | number
 	rating?: string | number
 	shopName?: string
+	index?: number
 }
 
 function safeImage(url?: string | null): string {
@@ -25,6 +26,11 @@ function safeImage(url?: string | null): string {
 	return value
 }
 
+function shouldUseUnoptimized(url: string): boolean {
+	if (!url) return true
+	return url.startsWith('/api/image?')
+}
+
 export default function Product({
 	productId,
 	title,
@@ -32,23 +38,25 @@ export default function Product({
 	imageUrl,
 	source,
 	sales,
-	rating
+	rating,
+	index = 0
 }: ProductProps) {
 	const { addItem, removeItem, isInCart } = useCart()
 	const { addFavorite, removeFavorite, isFavorite } = useFavorites()
 
 	const favorite = isFavorite(productId)
 	const inCart = isInCart(productId)
+	const isPriorityCard = index < 2
 
-	const initialPrice = useMemo(() => {
-		return parseFloat(String(price).replace(/[^\d.-]/g, '')) || 0
+	const displayPrice = useMemo(() => {
+		const parsed = parseFloat(String(price).replace(/[^\d.-]/g, '')) || 0
+		return parsed === 0 ? 150 : parsed
 	}, [price])
 
 	const initialImage = useMemo(() => {
 		return safeImage(imageUrl || '')
 	}, [imageUrl])
 
-	const [displayPrice, setDisplayPrice] = useState(initialPrice === 0 ? 150 : initialPrice)
 	const [resolvedImageUrl, setResolvedImageUrl] = useState(initialImage)
 	const [imgError, setImgError] = useState(false)
 
@@ -56,51 +64,6 @@ export default function Product({
 		setResolvedImageUrl(initialImage)
 		setImgError(false)
 	}, [initialImage, productId])
-
-	useEffect(() => {
-		if (initialPrice > 0 && initialPrice < 40) {
-			fetch(`/api/product/${productId}?debug=1`, { cache: 'no-store' })
-				.then(res => res.json())
-				.then(json => {
-					if (json?.success && json?.data?.price && Number(json.data.price) > displayPrice) {
-						setDisplayPrice(Number(json.data.price))
-					}
-				})
-				.catch(() => {})
-		}
-	}, [productId, initialPrice, displayPrice])
-
-	useEffect(() => {
-		const needImage = !resolvedImageUrl || resolvedImageUrl.trim() === ''
-
-		if (!needImage) return
-
-		let cancelled = false
-
-		fetch(`/api/product/${productId}?debug=1`, { cache: 'no-store' })
-			.then(res => res.json())
-			.then(json => {
-				if (cancelled || !json?.success || !json?.data) return
-
-				const data = json.data
-				const fallbackImage =
-					safeImage(data.image) ||
-					(Array.isArray(data.images) ? safeImage(data.images[0]) : '') ||
-					(Array.isArray(data.skuOptions) && data.skuOptions.length > 0
-						? safeImage(data.skuOptions[0]?.image)
-						: '')
-
-				if (fallbackImage) {
-					setResolvedImageUrl(fallbackImage)
-					setImgError(false)
-				}
-			})
-			.catch(() => {})
-
-		return () => {
-			cancelled = true
-		}
-	}, [productId, resolvedImageUrl])
 
 	const displaySales = useMemo(() => {
 		if (sales !== undefined && sales !== null && sales !== '') return sales
@@ -147,6 +110,7 @@ export default function Product({
 	}
 
 	const shouldShowFallback = imgError || !resolvedImageUrl || resolvedImageUrl === '/no-image.jpg'
+	const useUnoptimized = shouldUseUnoptimized(resolvedImageUrl)
 
 	return (
 		<div className="group flex h-full flex-col overflow-hidden rounded-xl border border-gray-100 bg-white transition-all duration-300 hover:border-green-100 hover:shadow-xl active:scale-[0.99]">
@@ -158,37 +122,14 @@ export default function Product({
 							alt={title || 'Товар'}
 							fill
 							className="object-cover transition-transform duration-500 group-hover:scale-105"
-							sizes="(max-width: 768px) 50vw, 25vw"
-							loading="lazy"
-							unoptimized
-							onError={() => {
-								if (!imgError) {
-									fetch(`/api/product/${productId}?debug=1`, { cache: 'no-store' })
-										.then(res => res.json())
-										.then(json => {
-											if (!json?.success || !json?.data) {
-												setImgError(true)
-												return
-											}
-
-											const data = json.data
-											const retryImage =
-												(Array.isArray(data.images) ? safeImage(data.images[0]) : '') ||
-												(Array.isArray(data.skuOptions) && data.skuOptions.length > 0
-													? safeImage(data.skuOptions[0]?.image)
-													: '') ||
-												safeImage(data.image)
-
-											if (retryImage && retryImage !== resolvedImageUrl) {
-												setResolvedImageUrl(retryImage)
-												return
-											}
-
-											setImgError(true)
-										})
-										.catch(() => setImgError(true))
-								}
-							}}
+							sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+							loading={isPriorityCard ? 'eager' : 'lazy'}
+							priority={isPriorityCard}
+							fetchPriority={isPriorityCard ? 'high' : 'low'}
+							decoding="async"
+							quality={45}
+							unoptimized={useUnoptimized}
+							onError={() => setImgError(true)}
 						/>
 					) : (
 						<div className="flex h-full items-center justify-center text-xs text-gray-400">

@@ -3,9 +3,9 @@
 import { ProductItem } from '@/types/product'
 import { searchAllProducts } from './product-service'
 
-/**
- * Server Action для загрузки страницы товаров
- */
+const KEYWORDS = ['одежда', 'обувь', 'телефон']
+const PER_PAGE = 12
+
 export async function loadProductsPage(page: number = 1): Promise<{
 	success: boolean
 	data: ProductItem[]
@@ -16,29 +16,13 @@ export async function loadProductsPage(page: number = 1): Promise<{
 	}
 }> {
 	try {
-		// Используем фиксированные ключевые слова для главной страницы
-		const keywords = ['одежда', 'обувь', 'телефон']
-		const promises = keywords.map(async keyword => {
-			const result = await searchAllProducts(keyword, page)
-			return result.data
-		})
-		const results = await Promise.all(promises)
-		const products: ProductItem[] = []
-		results.forEach(items => {
-			items.forEach(item => {
-				products.push(item)
-			})
-		})
-		// Перемешиваем и ограничиваем
-		const shuffled = products.sort(() => Math.random() - 0.5).slice(0, 18)
+		const keyword = KEYWORDS[(page - 1) % KEYWORDS.length]
+		const result = await searchAllProducts(keyword, page)
+
 		return {
-			success: true,
-			data: shuffled,
-			sources: {
-				taobao: 0,
-				'1688': 0,
-				poizon: 0
-			}
+			success: result.success,
+			data: result.data.slice(0, PER_PAGE),
+			sources: result.sources
 		}
 	} catch (error) {
 		console.error('Server Action loadProductsPage error:', error)
@@ -49,9 +33,6 @@ export async function loadProductsPage(page: number = 1): Promise<{
 	}
 }
 
-/**
- * Server Action для поиска товаров по ключевому слову
- */
 export async function searchProductsByKeywordAction(
 	keyword: string,
 	page: number = 1

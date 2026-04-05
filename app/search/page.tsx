@@ -1,5 +1,5 @@
 import { Pagination, ProductGrid, SortFilter } from '@/components/ui'
-import { searchAllProducts, SearchOptions, UnifiedProduct } from '@/lib/api-client'
+import { searchAllProducts } from '@/lib/server/product-service'
 import { ProductItem } from '@/types/product'
 import { Metadata } from 'next'
 
@@ -11,81 +11,91 @@ export const metadata: Metadata = {
 interface SearchPageParams {
 	q?: string
 	page?: string
-	sort?: string // price_asc, price_desc, title_asc, title_desc
+	sort?: string
 	minPrice?: string
 	maxPrice?: string
-	sources?: string // через запятую: taobao,1688,poizon
+	sources?: string
+}
+
+function parsePrice(value: string | number | undefined): number {
+	if (value === undefined) return 0
+	return parseFloat(String(value).replace(/[^\d.-]/g, '')) || 0
 }
 
 export default async function SearchPage(props: { searchParams: Promise<SearchPageParams> }) {
 	const resolvedSearchParams = await props.searchParams
+
 	const query = resolvedSearchParams.q || ''
 	const page = parseInt(resolvedSearchParams.page || '1', 10)
 	const sort = resolvedSearchParams.sort
 	const minPrice = resolvedSearchParams.minPrice ? parseFloat(resolvedSearchParams.minPrice) : undefined
 	const maxPrice = resolvedSearchParams.maxPrice ? parseFloat(resolvedSearchParams.maxPrice) : undefined
 	const sources = resolvedSearchParams.sources
-		? (resolvedSearchParams.sources.split(',').filter(s => ['taobao', '1688', 'poizon'].includes(s)) as ('taobao' | '1688' | 'poizon')[])
+		? resolvedSearchParams.sources
+				.split(',')
+				.filter(s => ['taobao', '1688', 'poizon'].includes(s)) as ('taobao' | '1688' | 'poizon')[]
 		: undefined
-
-	// Преобразуем sort в sortByPrice и sortByName для API
-	let sortByPrice: 'asc' | 'desc' | undefined = undefined
-	let sortByName: 'asc' | 'desc' | undefined = undefined
-	if (sort === 'price_asc') sortByPrice = 'asc'
-	if (sort === 'price_desc') sortByPrice = 'desc'
-	if (sort === 'title_asc') sortByName = 'asc'
-	if (sort === 'title_desc') sortByName = 'desc'
 
 	let results: ProductItem[] = []
 	let error: string | null = null
-	const currentPage = page
-	let sourceCounts = { taobao: 0, '1688': 0, poizon: 0 }
 
 	if (query) {
 		try {
-			// Опции сортировки и фильтрации
-			const options: SearchOptions = {
-				sortByPrice,
-				sortByName,
-				minPrice,
-				maxPrice,
-				sources
+			const searchResult = await searchAllProducts(query, page)
+			results = [...searchResult.data]
+
+			if (sources && sources.length > 0) {
+				results = results.filter(product => product.source && sources.includes(product.source))
 			}
 
-			const searchResult = await searchAllProducts(query, page, 10, options)
+			if (minPrice !== undefined) {
+				results = results.filter(product => parsePrice(product.price) >= minPrice)
+			}
 
-			// Преобразуем результаты в формат для отображения
-			results = searchResult.products.map((p: UnifiedProduct) => ({
-				productId: p.id,
-				title: p.title,
-				price: Math.round(p.price).toString(),
-				imageUrl: p.image,
-				shopName: p.shopName,
-				sales: p.sales,
-				source: p.source
-			}))
+			if (maxPrice !== undefined) {
+				results = results.filter(product => parsePrice(product.price) <= maxPrice)
+			}
 
-			sourceCounts = searchResult.sources
+			if (sort === 'price_asc') {
+				results.sort((a, b) => parsePrice(a.price) - parsePrice(b.price))
+			}
+
+			if (sort === 'price_desc') {
+				results.sort((a, b) => parsePrice(b.price) - parsePrice(a.price))
+			}
+
+			if (sort === 'title_asc') {
+				results.sort((a, b) => String(a.title || '').localeCompare(String(b.title || ''), 'ru'))
+			}
+
+			if (sort === 'title_desc') {
+				results.sort((a, b) => String(b.title || '').localeCompare(String(a.title || ''), 'ru'))
+			}
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Неизвестная ошибка'
 			console.error('Search error:', err)
 		}
 	}
 
-	// Параметры для передачи в компоненты (чтобы сохранять в URL)
 	const queryParams: Record<string, string> = { q: query }
 	if (sort) queryParams.sort = sort
 	if (minPrice !== undefined) queryParams.minPrice = minPrice.toString()
 	if (maxPrice !== undefined) queryParams.maxPrice = maxPrice.toString()
-	if (sources) queryParams.sources = sources.join(',')
+	if (sources && sources.length > 0) queryParams.sources = sources.join(',')
 
 	return (
 		<div className="container mx-auto px-4 py-8">
-			<h1 className="text-3xl font-bold mb-6">{query ? `Результаты поиска: "${query}"` : 'Поиск товаров'}</h1>
+			<h1 className="mb-6 text-3xl font-bold">
+				{query ? `Результаты поиска: "${query}"` : 'Поиск товаров'}
+			</h1>
 
 			{!query && <p className="text-gray-600">Введите запрос в поле поиска выше.</p>}
 
-			{error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">Ошибка при загрузке результатов: {error}</div>}
+			{error && (
+				<div className="mb-4 rounded border border-red-400 bg-red-100 px-4 py-3 text-red-700">
+					Ошибка при загрузке результатов: {error}
+				</div>
+			)}
 
 			{query && !error && (
 				<>
@@ -97,7 +107,7 @@ export default async function SearchPage(props: { searchParams: Promise<SearchPa
 
 					{results.length > 0 && (
 						<Pagination
-							currentPage={currentPage}
+							currentPage={page}
 							baseUrl="/search"
 							queryParams={queryParams}
 						/>

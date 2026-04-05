@@ -18,14 +18,14 @@ export function HomeClient({ initialProducts }: HomeClientProps) {
 	const handleLoadMore = useCallback(async () => {
 		const nextPage = page + 1
 		setLoading(true)
+
 		try {
 			const result = await loadProductsPage(nextPage)
+
 			if (result.success) {
-				const newProducts = result.data
-				// Фильтруем дубликаты по productId
 				setProducts(prev => {
 					const existingIds = new Set(prev.map(p => p.productId))
-					const uniqueProducts = newProducts.filter(p => !existingIds.has(p.productId))
+					const uniqueProducts = result.data.filter(p => !existingIds.has(p.productId))
 					return [...prev, ...uniqueProducts]
 				})
 				setPage(nextPage)
@@ -41,13 +41,12 @@ export function HomeClient({ initialProducts }: HomeClientProps) {
 
 	return (
 		<>
-			{/* Дополнительные продукты, загруженные клиентом */}
-			{products.length > initialProducts.length && (
-				<div
-					className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6 gap-6 mt-6"
-					id="more-products"
-				>
-					{products.slice(initialProducts.length).map(product => (
+			<div
+				className="grid grid-cols-2 gap-2.5 md:grid-cols-3 lg:grid-cols-4 lg:gap-6 2xl:grid-cols-6"
+				id="products"
+			>
+				{products.length > 0 ? (
+					products.map(product => (
 						<Product
 							key={product.productId}
 							productId={product.productId}
@@ -58,18 +57,21 @@ export function HomeClient({ initialProducts }: HomeClientProps) {
 							sales={product.sales}
 							source={product.source}
 						/>
-					))}
-				</div>
-			)}
+					))
+				) : (
+					<div className="col-span-6 py-10 text-center">
+						<p className="text-gray-500">Товары не найдены. Попробуйте позже.</p>
+					</div>
+				)}
+			</div>
 
-			{/* Скелетоны при загрузке */}
 			{loading && (
 				<div className="mt-6">
 					<LoadingSkeleton type="product" />
 				</div>
 			)}
 
-			<div className="mt-10 text-center mb-5">
+			<div className="mb-5 mt-10 text-center">
 				<Button
 					variant="primary"
 					onClick={handleLoadMore}

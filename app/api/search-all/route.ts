@@ -8,6 +8,10 @@ import { NextRequest, NextResponse } from 'next/server'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
+const PER_SOURCE_LIMIT = 6
+const TOTAL_LIMIT = 12
+const SOURCE_TIMEOUT_MS = 3500
+
 const safeConvert = (cny: number | null | undefined | typeof NaN) => {
 	if (cny === null || cny === undefined || Number.isNaN(cny)) return 0
 
@@ -48,12 +52,24 @@ function pickFirstImage(...candidates: unknown[]): string {
 	return ''
 }
 
+async function withTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
+	return await Promise.race([
+		promise,
+		new Promise<T>((_, reject) =>
+			setTimeout(() => reject(new Error(`${label} timeout after ${SOURCE_TIMEOUT_MS}ms`)), SOURCE_TIMEOUT_MS)
+		)
+	])
+}
+
 async function searchTaobao(keyword: string, page: number): Promise<ProductItem[]> {
 	try {
-		const result = await searchTaobaoProductsByKeyword(keyword, {
-			page_no: page,
-			page_size: 20
-		})
+		const result = await withTimeout(
+			searchTaobaoProductsByKeyword(keyword, {
+				page_no: page,
+				page_size: PER_SOURCE_LIMIT
+			}),
+			'taobao'
+		)
 
 		if (result && typeof result === 'object') {
 			const obj = result as Record<string, unknown>
@@ -69,7 +85,6 @@ async function searchTaobao(keyword: string, page: number): Promise<ProductItem[
 					).replace(/[^0-9.]/g, '')
 
 					const priceCny = parseFloat(rawPrice) || 0
-
 					const imageUrl = pickFirstImage(
 						itemAny.mainImageUrl,
 						itemAny.pictUrl,
@@ -102,10 +117,13 @@ async function searchTaobao(keyword: string, page: number): Promise<ProductItem[
 
 async function search1688(keyword: string, page: number): Promise<ProductItem[]> {
 	try {
-		const result = await searchProductsByKeyword(keyword, {
-			beginPage: page,
-			pageSize: 20
-		})
+		const result = await withTimeout(
+			searchProductsByKeyword(keyword, {
+				beginPage: page,
+				pageSize: PER_SOURCE_LIMIT
+			}),
+			'1688'
+		)
 
 		if (result && typeof result === 'object') {
 			const obj = result as Record<string, unknown>
@@ -131,7 +149,6 @@ async function search1688(keyword: string, page: number): Promise<ProductItem[]>
 
 					price = price.replace(/[^0-9.]/g, '')
 					const priceCny = parseFloat(price) || 0
-
 					const title = String(item.subjectTrans || item.subject || '')
 					const imageUrl = pickFirstImage(
 						item.imageUrl,
@@ -164,12 +181,15 @@ async function search1688(keyword: string, page: number): Promise<ProductItem[]>
 
 async function searchPoizon(keyword: string, page: number): Promise<ProductItem[]> {
 	try {
-		const startId = (page - 1) * 20 + 1
+		const startId = (page - 1) * PER_SOURCE_LIMIT + 1
 
-		const result = await getPoizonProducts(keyword, undefined, undefined, {
-			startId: String(startId),
-			pageSize: 20
-		})
+		const result = await withTimeout(
+			getPoizonProducts(keyword, undefined, undefined, {
+				startId: String(startId),
+				pageSize: PER_SOURCE_LIMIT
+			}),
+			'poizon'
+		)
 
 		if (result && typeof result === 'object') {
 			const obj = result as Record<string, unknown>
@@ -216,15 +236,24 @@ export async function GET(request: NextRequest) {
 		'товары'
 
 	const page = parseInt(searchParams.get('page') || '1', 10)
+	const fastMode = searchParams.get('fast') === '1'
 
 	try {
-		const [taobaoProducts, products1688, poizonProducts] = await Promise.all([
-			searchTaobao(keyword, page),
-			search1688(keyword, page),
-			searchPoizon(keyword, page)
-		])
+		const promises: Promise<ProductItem[]>[] = [searchTaobao(keyword, page), search1688(keyword, page)]
 
-		const allProducts: ProductItem[] = [...taobaoProducts, ...products1688, ...poizonProducts]
+		if (!fastMode) {
+			promises.push(searchPoizon(keyword, page))
+		}
+
+		const results = await Promise.all(promises)
+		const taobaoProducts = results[0] || []
+		const products1688 = results[1] || []
+		const poizonProducts = results[2] || []
+
+		const allProducts: ProductItem[] = [...taobaoProducts, ...products1688, ...poizonProducts].slice(
+			0,
+			TOTAL_LIMIT
+		)
 
 		return NextResponse.json(
 			{
@@ -238,7 +267,7 @@ export async function GET(request: NextRequest) {
 			},
 			{
 				headers: {
-					'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate'
+					'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120'
 				}
 			}
 		)
