@@ -1,8 +1,12 @@
-import { getPoizonProducts, searchProductsByKeyword, searchTaobaoProductsByKeyword } from '@/lib/api-client'
+import {
+	getPoizonProducts,
+	searchProductsByKeyword,
+	searchTaobaoProductsByKeyword
+} from '@/lib/api-client'
 import { cnyToRub } from '@/lib/utils/format'
 import { getTaobaoTitle } from '@/lib/utils/taobao'
-import { ProductItem } from '@/types/product'
 import type { TaobaoProductResponse } from '@/types/api'
+import { ProductDetail, ProductItem } from '@/types/product'
 
 function normalizeImage(url: unknown): string {
 	if (!url) return ''
@@ -84,7 +88,10 @@ function getPoizonImage(item: Record<string, unknown>): string {
  */
 async function searchTaobao(keyword: string, page: number): Promise<ProductItem[]> {
 	try {
-		const result = await searchTaobaoProductsByKeyword(keyword, { page_no: page, page_size: 10 })
+		const result = await searchTaobaoProductsByKeyword(keyword, {
+			page_no: page,
+			page_size: 10
+		})
 
 		if (result && typeof result === 'object') {
 			const obj = result as Record<string, unknown>
@@ -126,7 +133,10 @@ async function searchTaobao(keyword: string, page: number): Promise<ProductItem[
  */
 async function search1688(keyword: string, page: number): Promise<ProductItem[]> {
 	try {
-		const result = await searchProductsByKeyword(keyword, { beginPage: page, pageSize: 10 })
+		const result = await searchProductsByKeyword(keyword, {
+			beginPage: page,
+			pageSize: 10
+		})
 
 		if (result && typeof result === 'object') {
 			const obj = result as Record<string, unknown>
@@ -260,27 +270,51 @@ export async function searchAllProducts(
 }
 
 /**
- * Получение деталей товара по ID (упрощённая версия)
+ * Получение деталей товара по ID через реальный API роут приложения
+ * Без фейковых заглушек.
  */
 export async function getProductDetails(productId: string): Promise<{
 	success: boolean
-	data?: ProductItem
+	data?: ProductDetail
 	error?: string
 }> {
-	return {
-		success: true,
-		data: {
-			productId,
-			title: 'Товар ' + productId,
-			price: '1000',
-			imageUrl: '/api/image?url=' + encodeURIComponent('https://via.placeholder.com/300'),
-			source: productId.startsWith('taobao')
-				? 'taobao'
-				: productId.startsWith('poizon')
-					? 'poizon'
-					: '1688',
-			shopName: 'Магазин',
-			sales: 100
+	try {
+		const baseUrl =
+			process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, '') || 'http://localhost:3000'
+
+		const res = await fetch(`${baseUrl}/api/product/${productId}?debug=1`, {
+			cache: 'no-store'
+		})
+
+		if (!res.ok) {
+			return {
+				success: false,
+				error: `HTTP error: ${res.status}`
+			}
+		}
+
+		const json = (await res.json()) as {
+			success: boolean
+			data?: ProductDetail
+			error?: string
+		}
+
+		if (json.success && json.data) {
+			return {
+				success: true,
+				data: json.data
+			}
+		}
+
+		return {
+			success: false,
+			error: json.error || 'Не удалось загрузить товар'
+		}
+	} catch (error) {
+		console.error('getProductDetails error:', error)
+		return {
+			success: false,
+			error: error instanceof Error ? error.message : 'Failed to load product'
 		}
 	}
 }
