@@ -1,10 +1,16 @@
 import { ProductDetail } from '@/types/product'
 import Link from 'next/link'
+import { headers } from 'next/headers'
 import { ProductClient } from './ProductClient'
 
-async function fetchProduct(productId: string): Promise<{ success: boolean; data?: ProductDetail; error?: string }> {
+async function fetchProduct(
+	productId: string
+): Promise<{ success: boolean; data?: ProductDetail; error?: string }> {
 	try {
-		const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+		const headersList = await headers()
+		const host = headersList.get('host') || 'localhost:3000'
+		const protocol = host.includes('localhost') || host.startsWith('127.0.0.1') ? 'http' : 'https'
+		const baseUrl = `${protocol}://${host}`
 
 		const res = await fetch(`${baseUrl}/api/product/${productId}?debug=1`, {
 			cache: 'no-store'
@@ -17,7 +23,11 @@ async function fetchProduct(productId: string): Promise<{ success: boolean; data
 			}
 		}
 
-		const data = await res.json()
+		const data = (await res.json()) as {
+			success: boolean
+			data?: ProductDetail
+			error?: string
+		}
 
 		if (data.success && data.data) {
 			return { success: true, data: data.data }
@@ -31,7 +41,7 @@ async function fetchProduct(productId: string): Promise<{ success: boolean; data
 		console.error('Failed to fetch product:', error)
 		return {
 			success: false,
-			error: 'Failed to load product'
+			error: error instanceof Error ? error.message : 'Failed to load product'
 		}
 	}
 }
