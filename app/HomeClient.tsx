@@ -31,9 +31,7 @@ export function HomeClient({ initialProducts }: HomeClientProps) {
 				setPage(nextPage)
 			}
 		} catch (error) {
-			if (process.env.NODE_ENV !== 'production') {
-				console.error('Failed to load products:', error)
-			}
+			console.error('Failed to load products:', error)
 		} finally {
 			setLoading(false)
 		}
@@ -46,9 +44,9 @@ export function HomeClient({ initialProducts }: HomeClientProps) {
 				id="products"
 			>
 				{products.length > 0 ? (
-					products.map(product => (
+					products.map((product, index) => (
 						<Product
-							key={product.productId}
+							key={`${product.productId}-${product.source}-${index}`}
 							productId={product.productId}
 							title={product.title}
 							price={product.price}
@@ -56,6 +54,7 @@ export function HomeClient({ initialProducts }: HomeClientProps) {
 							shopName={product.shopName}
 							sales={product.sales}
 							source={product.source}
+							index={index}
 						/>
 					))
 				) : (
