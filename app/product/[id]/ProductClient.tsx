@@ -55,6 +55,26 @@ function getSafeColorHex(color: string): string {
     return hex
 }
 
+function isRenderableImage(url: string | undefined | null): boolean {
+    if (!url) return false
+
+    const value = url.trim()
+    if (!value) return false
+
+    const lower = value.toLowerCase()
+
+    if (
+        lower === '/no-image.jpg' ||
+        lower.includes('undefined') ||
+        lower.includes('null') ||
+        lower.endsWith('/api/image?url=')
+    ) {
+        return false
+    }
+
+    return true
+}
+
 type MediaItem =
     | {
           type: 'image'
@@ -196,7 +216,10 @@ export function ProductClient({ product, productId }: ProductClientProps) {
             const params = new URLSearchParams(window.location.search)
             const passedPrice = params.get('p')
             if (passedPrice) {
-                setBasePrice(parseInt(passedPrice, 10))
+                const parsed = parseInt(passedPrice, 10)
+                if (Number.isFinite(parsed) && parsed > 0) {
+                    setBasePrice(parsed)
+                }
             }
         }
     }, [])
@@ -319,7 +342,7 @@ export function ProductClient({ product, productId }: ProductClientProps) {
     )
 
     const mediaItems = useMemo(() => {
-        const baseImages = product.images || []
+        const baseImages = Array.isArray(product.images) ? product.images : []
         const descImages: string[] = []
 
         if (product.descriptionHtml) {
@@ -329,6 +352,7 @@ export function ProductClient({ product, productId }: ProductClientProps) {
         }
 
         const combinedImages = [...baseImages]
+
         descImages.forEach(img => {
             if (!combinedImages.includes(img)) combinedImages.push(img)
         })
@@ -340,20 +364,11 @@ export function ProductClient({ product, productId }: ProductClientProps) {
 
         const normalizedImages = combinedImages
             .map(getValidImage)
-            .filter(Boolean)
+            .filter(isRenderableImage)
             .filter((url, index, arr) => arr.indexOf(url) === index)
-            .filter(url => url !== '/no-image.jpg')
 
         const fallbackPoster = getValidImage(skuImage || product.image || normalizedImages[0] || '/no-image.jpg')
-
         const items: MediaItem[] = []
-
-        normalizedImages.forEach(url => {
-            items.push({
-                type: 'image',
-                url
-            })
-        })
 
         if (product.videos && product.videos.length > 0) {
             const videoUrl = getValidVideo(product.videos[0])
@@ -365,6 +380,13 @@ export function ProductClient({ product, productId }: ProductClientProps) {
                 })
             }
         }
+
+        normalizedImages.forEach(url => {
+            items.push({
+                type: 'image',
+                url
+            })
+        })
 
         if (items.length === 0) {
             items.push({
@@ -864,7 +886,7 @@ export function ProductClient({ product, productId }: ProductClientProps) {
                                                     </div>
                                                 </div>
                                             </div>
-                                        ) : failedThumbImages[thumbKey] ? (
+                                        ) : failedThumbImages[thumbKey] || !isRenderableImage(item.url) ? (
                                             <div className="flex h-full w-full items-center justify-center bg-gray-100 text-[10px] text-gray-400">
                                                 Нет фото
                                             </div>
@@ -1133,4 +1155,5 @@ export function ProductClient({ product, productId }: ProductClientProps) {
                 </div>
             </div>
         </div>
-    )}
+    )
+}

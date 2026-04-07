@@ -3,11 +3,13 @@
 import CartItem from '@/components/cart/CartItem'
 import { Button } from '@/components/ui'
 import { useCartStore } from '@/lib/store'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 interface StepOneProps {
 	onNext?: () => void
 }
+
+const MIN_ORDER_AMOUNT = 5000
 
 export default function StepOne({ onNext }: StepOneProps) {
 	const {
@@ -69,22 +71,21 @@ export default function StepOne({ onNext }: StepOneProps) {
 	}, [items, setShippingCost, setMoscowShippingCost])
 
 	const totalWithShipping = totalPrice + shippingCost + moscowShippingCost
+	const minOrderLeft = useMemo(() => Math.max(0, MIN_ORDER_AMOUNT - totalPrice), [totalPrice])
+	const isMinOrderReached = totalPrice >= MIN_ORDER_AMOUNT
 
 	return (
 		<div id="step-1">
 			{items.length === 0 ? (
-				<div className="flex flex-col items-center justify-center py-20 bg-gray-50 rounded-lg">
-					<p className="text-gray-500 text-lg mb-4">Корзина пуста</p>
-					<Button
-						variant="primary"
-						onClick={() => (window.location.href = '/')}
-					>
+				<div className="flex flex-col items-center justify-center rounded-lg bg-gray-50 py-20">
+					<p className="mb-4 text-lg text-gray-500">Корзина пуста</p>
+					<Button variant="primary" onClick={() => (window.location.href = '/')}>
 						Перейти в каталог
 					</Button>
 				</div>
 			) : (
 				<>
-					<div className="mt-5 border border-gray-100 rounded-lg flex flex-col gap-2.5">
+					<div className="mt-5 flex flex-col gap-2.5 rounded-lg border border-gray-100">
 						{items.map(item => (
 							<CartItem
 								key={`${item.productId}-${item.color || ''}-${item.size || ''}-${item.skuId || ''}`}
@@ -101,32 +102,41 @@ export default function StepOne({ onNext }: StepOneProps) {
 						))}
 					</div>
 
-					<div className="p-2.5 border border-b border-gray-300 rounded-lg mt-2.5">
-						<h2 className="uppercase font-semibold text-lg text-black text-center border-b border-b-gray-200">
-							Всего в корзине: {totalItems} {totalItems === 1 ? 'товар' : totalItems > 1 && totalItems < 5 ? 'товара' : 'товаров'}
+					<div className="mt-2.5 rounded-lg border border-b border-gray-300 p-2.5">
+						<h2 className="border-b border-b-gray-200 text-center text-lg font-semibold uppercase text-black">
+							Всего в корзине: {totalItems}{' '}
+							{totalItems === 1 ? 'товар' : totalItems > 1 && totalItems < 5 ? 'товара' : 'товаров'}
 						</h2>
 
-						<div className="flex items-center justify-between w-full mt-2.5">
+						<div className="mt-2.5 flex w-full items-center justify-between">
 							<span className="text-lg font-bold text-black">Стоимость товаров:</span>
-							<span className="text-black font-semibold text-lg">{totalPrice.toFixed(2)} ₽</span>
+							<span className="text-lg font-semibold text-black">{totalPrice.toFixed(2)} ₽</span>
 						</div>
 
-						<div className="flex items-center justify-between w-full mt-2">
+						<div className="mt-2 flex w-full items-center justify-between">
 							<span className="text-lg font-bold text-black">Доставка по Китаю:</span>
-							<span className="text-black font-semibold text-lg">{loading ? 'Расчет...' : `${shippingCost.toFixed(2)} ₽`}</span>
+							<span className="text-lg font-semibold text-black">{loading ? 'Расчет...' : `${shippingCost.toFixed(2)} ₽`}</span>
 						</div>
 
-						<div className="flex items-center justify-between w-full mt-2">
+						<div className="mt-2 flex w-full items-center justify-between">
 							<span className="text-lg font-bold text-black">Доставка Китай → Москва:</span>
-							<span className="text-black font-semibold text-lg">{loading ? 'Расчет...' : `${moscowShippingCost.toFixed(2)} ₽`}</span>
+							<span className="text-lg font-semibold text-black">{loading ? 'Расчет...' : `${moscowShippingCost.toFixed(2)} ₽`}</span>
 						</div>
 
-						<div className="flex items-center justify-between w-full mt-2 pt-2 border-t border-gray-200">
+						{!isMinOrderReached && (
+							<div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
+								<p className="text-sm font-semibold text-amber-900">
+									Минимальная сумма заказа: {MIN_ORDER_AMOUNT.toLocaleString('ru-RU')} ₽ без доставки.
+								</p>
+								<p className="mt-1 text-sm text-amber-800">
+									Добавьте товаров ещё на {minOrderLeft.toLocaleString('ru-RU')} ₽.
+								</p>
+							</div>
+						)}
+
+						<div className="mt-2 flex w-full items-center justify-between border-t border-gray-200 pt-2">
 							<span className="text-xl font-bold text-black">Итого:</span>
-							<span
-								id="item-price"
-								className="text-black font-bold text-xl"
-							>
+							<span id="item-price" className="text-xl font-bold text-black">
 								{loading ? '...' : `${totalWithShipping.toFixed(2)} ₽`}
 							</span>
 						</div>
@@ -135,10 +145,14 @@ export default function StepOne({ onNext }: StepOneProps) {
 							<Button
 								variant="primary"
 								onClick={onNext}
-								className="mt-4 w-full flex-shrink-0 flex items-center justify-center gap-2.5"
-								disabled={loading}
+								className="mt-4 flex w-full flex-shrink-0 items-center justify-center gap-2.5"
+								disabled={loading || !isMinOrderReached}
 							>
-								<span>Оформить заказ</span>
+								<span>
+									{!isMinOrderReached
+										? `Минимум ${MIN_ORDER_AMOUNT.toLocaleString('ru-RU')} ₽`
+										: 'Оформить заказ'}
+								</span>
 							</Button>
 						)}
 					</div>

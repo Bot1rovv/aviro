@@ -29,6 +29,8 @@ interface CreateOrderRequest {
 	}
 }
 
+const MIN_ORDER_AMOUNT = 5000
+
 export async function POST(request: NextRequest) {
 	try {
 		const session = await getServerSession(authOptions)
@@ -53,7 +55,10 @@ export async function POST(request: NextRequest) {
 		const cleanedPhone = phone.replace(/\D/g, '')
 		const phoneRegex = /^(7|8)?\d{10}$/
 		if (!phoneRegex.test(cleanedPhone)) {
-			return NextResponse.json({ error: 'Некорректный номер телефона. Ожидается российский номер (10 или 11 цифр)' }, { status: 400 })
+			return NextResponse.json(
+				{ error: 'Некорректный номер телефона. Ожидается российский номер (10 или 11 цифр)' },
+				{ status: 400 }
+			)
 		}
 
 		const mergedItemsMap = new Map<string, CartItem>()
@@ -68,6 +73,22 @@ export async function POST(request: NextRequest) {
 		const mergedItems = Array.from(mergedItemsMap.values())
 
 		const productsTotal = mergedItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
+
+		if (productsTotal < MIN_ORDER_AMOUNT) {
+			return NextResponse.json(
+				{
+					error: `Минимальная сумма заказа ${MIN_ORDER_AMOUNT.toLocaleString(
+						'ru-RU'
+					)} ₽ без доставки`,
+					code: 'MIN_ORDER_AMOUNT',
+					minOrderAmount: MIN_ORDER_AMOUNT,
+					productsTotal: Number(productsTotal.toFixed(2)),
+					leftToMinOrder: Number((MIN_ORDER_AMOUNT - productsTotal).toFixed(2))
+				},
+				{ status: 400 }
+			)
+		}
+
 		const chinaShippingCost = Number(body.shippingCost || 0)
 		const moscowShippingCost = Number(body.moscowShippingCost || 0)
 		const total = productsTotal + chinaShippingCost + moscowShippingCost
@@ -83,7 +104,8 @@ export async function POST(request: NextRequest) {
 			const price = typeof item.price === 'string' ? parseFloat(item.price) : item.price
 			return {
 				productId: item.id,
-				title: item.title,
+				title:
+					item.title,
 				quantity: {
 					count: item.quantity.toString()
 				},
@@ -182,7 +204,10 @@ export async function POST(request: NextRequest) {
 		if (!response.ok) {
 			const errorText = await response.text()
 			console.error('Yandex.Pay API error:', response.status, errorText)
-			return NextResponse.json({ error: 'Ошибка при создании заказа в Яндекс.Пэй', details: errorText }, { status: response.status })
+			return NextResponse.json(
+				{ error: 'Ошибка при создании заказа в Яндекс.Пэй', details: errorText },
+				{ status: response.status }
+			)
 		}
 
 		const yandexResponse = await response.json()
@@ -194,7 +219,9 @@ export async function POST(request: NextRequest) {
 
 		if (!paymentUrl) {
 			console.warn('Yandex.Pay response missing paymentUrl, using fallback')
-			paymentUrl = paymentData.confirmationUrl || (externalOrderId ? `https://sandbox.pay.yandex.ru/pay/${externalOrderId}` : undefined)
+			paymentUrl =
+				paymentData.confirmationUrl ||
+				(externalOrderId ? `https://sandbox.pay.yandex.ru/pay/${externalOrderId}` : undefined)
 		}
 
 		if (!paymentUrl) {
@@ -266,6 +293,9 @@ export async function POST(request: NextRequest) {
 		})
 	} catch (error) {
 		console.error('Error creating order:', error)
-		return NextResponse.json({ error: 'Внутренняя ошибка сервера', details: String(error) }, { status: 500 })
+		return NextResponse.json(
+			{ error: 'Внутренняя ошибка сервера', details: String(error) },
+			{ status: 500 }
+		)
 	}
 }

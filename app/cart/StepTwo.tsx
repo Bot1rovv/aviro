@@ -10,12 +10,14 @@ import { ShoppingBag, Trash2 } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 interface StepTwoProps {
 	onNext?: (data: { items: CartItem[]; userInfo: UserInfo }) => void
 	onBack?: () => void
 }
+
+const MIN_ORDER_AMOUNT = 5000
 
 export default function StepTwo({ onNext, onBack }: StepTwoProps) {
 	const {
@@ -79,6 +81,8 @@ export default function StepTwo({ onNext, onBack }: StepTwoProps) {
 	}, [items, setShippingCost, setMoscowShippingCost])
 
 	const finalTotal = totalPrice + shippingCost + moscowShippingCost
+	const minOrderLeft = useMemo(() => Math.max(0, MIN_ORDER_AMOUNT - totalPrice), [totalPrice])
+	const isMinOrderReached = totalPrice >= MIN_ORDER_AMOUNT
 
 	const handleClearCart = () => {
 		if (confirm('Вы уверены, что хотите очистить корзину?')) {
@@ -121,6 +125,15 @@ export default function StepTwo({ onNext, onBack }: StepTwoProps) {
 	}
 
 	const handleSubmitFromButton = () => {
+		if (!isMinOrderReached) {
+			alert(
+				`Минимальная сумма заказа ${MIN_ORDER_AMOUNT.toLocaleString(
+					'ru-RU'
+				)} ₽ без доставки. Добавьте товаров ещё на ${minOrderLeft.toLocaleString('ru-RU')} ₽.`
+			)
+			return
+		}
+
 		const formData = getFormDataFromDOM()
 
 		if (!formData) {
@@ -148,37 +161,31 @@ export default function StepTwo({ onNext, onBack }: StepTwoProps) {
 	return (
 		<div id="step-2">
 			{items.length === 0 ? (
-				<div className="flex flex-col items-center justify-center py-20 bg-gray-50 rounded-lg">
-					<ShoppingBag
-						size={64}
-						className="text-gray-300 mb-4"
-					/>
-					<p className="text-gray-500 text-lg">Корзина пуста</p>
-					<Link
-						href="/"
-						className="mt-4 text-blue-700 hover:text-blue-800 font-semibold"
-					>
+				<div className="flex flex-col items-center justify-center rounded-lg bg-gray-50 py-20">
+					<ShoppingBag size={64} className="mb-4 text-gray-300" />
+					<p className="text-lg text-gray-500">Корзина пуста</p>
+					<Link href="/" className="mt-4 font-semibold text-blue-700 hover:text-blue-800">
 						Перейти в каталог
 					</Link>
 				</div>
 			) : (
 				<>
-					<div className="bg-white rounded-lg border border-gray-200 p-5 flex flex-col gap-5">
+					<div className="flex flex-col gap-5 rounded-lg border border-gray-200 bg-white p-5">
 						<FormCart onNext={handleFormSubmit} />
 					</div>
 
-					<h2 className="text-black font-semibold text-2xl mb-5 mt-5">Ваш заказ</h2>
+					<h2 className="mb-5 mt-5 text-2xl font-semibold text-black">Ваш заказ</h2>
 
-					<div className="mt-5 border border-gray-100 rounded-lg flex flex-col gap-2.5">
+					<div className="mt-5 flex flex-col gap-2.5 rounded-lg border border-gray-100">
 						{items.map(item => (
 							<div
 								key={`${item.productId}-${item.color || ''}-${item.size || ''}-${item.skuId || ''}`}
-								className="p-4 border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors"
+								className="border-b border-gray-100 p-4 transition-colors hover:bg-gray-50 last:border-0"
 							>
 								<div className="flex gap-4">
 									<Link
 										href={`/product/${item.productId}`}
-										className="relative w-24 h-24 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 block"
+										className="relative block h-24 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-gray-100"
 									>
 										{item.imageUrl ? (
 											<Image
@@ -188,36 +195,36 @@ export default function StepTwo({ onNext, onBack }: StepTwoProps) {
 												className="object-cover"
 												sizes="96px"
 												loading="lazy"
+												unoptimized
 											/>
 										) : (
-											<div className="flex items-center justify-center h-full text-gray-400 text-xs">Нет фото</div>
+											<div className="flex h-full items-center justify-center text-xs text-gray-400">
+												Нет фото
+											</div>
 										)}
 									</Link>
 
-									<div className="flex-1 min-w-0">
-										<Link
-											href={`/product/${item.productId}`}
-											className="block"
-										>
+									<div className="min-w-0 flex-1">
+										<Link href={`/product/${item.productId}`} className="block">
 											<h3
-												className="font-medium text-gray-900 mb-2 truncate hover:text-blue-600 transition-colors"
+												className="mb-2 truncate font-medium text-gray-900 transition-colors hover:text-blue-600"
 												title={item.title}
 											>
 												{item.title}
 											</h3>
 										</Link>
 
-										<div className="flex items-center justify-between mb-2">
-											<span className="text-red-500 font-bold">{item.price} ₽</span>
+										<div className="mb-2 flex items-center justify-between">
+											<span className="font-bold text-red-500">{item.price} ₽</span>
 											<span className="text-sm text-gray-500">{item.source.toUpperCase()}</span>
 										</div>
 
-										{item.color && <div className="text-sm text-gray-500 mb-1">Цвет: {item.color}</div>}
-										{item.size && <div className="text-sm text-gray-500 mb-1">Размер: {item.size}</div>}
+										{item.color && <div className="mb-1 text-sm text-gray-500">Цвет: {item.color}</div>}
+										{item.size && <div className="mb-1 text-sm text-gray-500">Размер: {item.size}</div>}
 
 										<div className="flex items-center justify-between">
 											<div className="flex items-center gap-2">
-												<span className="text-gray-700 font-medium">Количество:</span>
+												<span className="font-medium text-gray-700">Количество:</span>
 												<span className="text-lg font-bold">{item.quantity}</span>
 											</div>
 											<Button
@@ -236,66 +243,63 @@ export default function StepTwo({ onNext, onBack }: StepTwoProps) {
 						))}
 					</div>
 
-					<div className="lg:grid lg:grid-cols-2 gap-5 mt-5">
+					<div className="mt-5 gap-5 lg:grid lg:grid-cols-2">
 						<div>
-							<div className="text-xs mb-2.5">
+							<div className="mb-2.5 text-xs">
 								<span>
-									Ваши личные данные будут использоваться для обработки ваших заказов, упрощения вашей работы с сайтом и для других целей, описанных в
-									нашей
+									Ваши личные данные будут использоваться для обработки ваших заказов,
+									упрощения вашей работы с сайтом и для других целей, описанных в нашей
 								</span>{' '}
-								<Link
-									href="#"
-									className="underline"
-								>
+								<Link href="#" className="underline">
 									политике конфиденциальности.
 								</Link>
 							</div>
 
-							<label
-								htmlFor="yandex"
-								className="flex items-center gap-2.5"
-							>
-								<input
-									type="radio"
-									id="yandex"
-									name="paymentMethod"
-									defaultChecked
-									value="yandex"
-								/>
+							<label htmlFor="yandex" className="flex items-center gap-2.5">
+								<input type="radio" id="yandex" name="paymentMethod" defaultChecked value="yandex" />
 								<span className="text-sm text-gray-600">Оплата через Яндекс Пэй.</span>
 							</label>
 						</div>
 
-						<div className="p-2.5 border border-b border-gray-300 rounded-lg mt-2.5">
-							<h2 className="uppercase font-semibold text-lg text-black text-center border-b border-b-gray-200 pb-2">
-								Всего в корзине: {totalItems} {totalItems === 1 ? 'товар' : totalItems > 1 && totalItems < 5 ? 'товара' : 'товаров'}
+						<div className="mt-2.5 rounded-lg border border-b border-gray-300 p-2.5">
+							<h2 className="border-b border-b-gray-200 pb-2 text-center text-lg font-semibold uppercase text-black">
+								Всего в корзине: {totalItems}{' '}
+								{totalItems === 1 ? 'товар' : totalItems > 1 && totalItems < 5 ? 'товара' : 'товаров'}
 							</h2>
 
-							<div className="flex items-center justify-between w-full mt-2.5">
+							<div className="mt-2.5 flex w-full items-center justify-between">
 								<span className="text-lg font-bold text-black">Стоимость товаров:</span>
-								<span className="text-black font-semibold text-lg">{totalPrice.toFixed(2)} ₽</span>
+								<span className="text-lg font-semibold text-black">{totalPrice.toFixed(2)} ₽</span>
 							</div>
 
-							<div className="flex items-center justify-between w-full mt-2">
+							<div className="mt-2 flex w-full items-center justify-between">
 								<span className="text-lg font-bold text-black">Доставка по Китаю:</span>
-								<span className="text-black font-semibold text-lg">
+								<span className="text-lg font-semibold text-black">
 									{shippingLoading ? 'Расчет...' : `${shippingCost.toFixed(2)} ₽`}
 								</span>
 							</div>
 
-							<div className="flex items-center justify-between w-full mt-2">
+							<div className="mt-2 flex w-full items-center justify-between">
 								<span className="text-lg font-bold text-black">Доставка Китай → Москва:</span>
-								<span className="text-black font-semibold text-lg">
+								<span className="text-lg font-semibold text-black">
 									{shippingLoading ? 'Расчет...' : `${moscowShippingCost.toFixed(2)} ₽`}
 								</span>
 							</div>
 
-							<div className="flex items-center justify-between w-full mt-2 pt-2 border-t border-gray-200">
+							{!isMinOrderReached && (
+								<div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
+									<p className="text-sm font-semibold text-amber-900">
+										Минимальная сумма заказа: {MIN_ORDER_AMOUNT.toLocaleString('ru-RU')} ₽ без доставки.
+									</p>
+									<p className="mt-1 text-sm text-amber-800">
+										Добавьте товаров ещё на {minOrderLeft.toLocaleString('ru-RU')} ₽.
+									</p>
+								</div>
+							)}
+
+							<div className="mt-2 flex w-full items-center justify-between border-t border-gray-200 pt-2">
 								<span className="text-lg font-bold text-black">Итого:</span>
-								<span
-									id="item-price"
-									className="text-black font-semibold text-lg"
-								>
+								<span id="item-price" className="text-lg font-semibold text-black">
 									{shippingLoading ? '...' : `${finalTotal.toFixed(2)} ₽`}
 								</span>
 							</div>
@@ -303,18 +307,24 @@ export default function StepTwo({ onNext, onBack }: StepTwoProps) {
 							<Button
 								variant="primary"
 								onClick={handleSubmitFromButton}
-								className="mt-4 w-full flex-shrink-0 flex items-center justify-center gap-2.5"
+								className="mt-4 flex w-full flex-shrink-0 items-center justify-center gap-2.5"
 								loading={loading}
-								disabled={loading || shippingLoading}
+								disabled={loading || shippingLoading || !isMinOrderReached}
 							>
-								<span>{loading ? 'Отправка...' : 'Подтвердить заказ'}</span>
+								<span>
+									{!isMinOrderReached
+										? `Минимум ${MIN_ORDER_AMOUNT.toLocaleString('ru-RU')} ₽`
+										: loading
+											? 'Отправка...'
+											: 'Подтвердить заказ'}
+								</span>
 							</Button>
 
 							<Button
 								variant="ghost"
 								size="sm"
 								onClick={handleClearCart}
-								className="w-full mt-2 text-gray-600 hover:text-red-500"
+								className="mt-2 w-full text-gray-600 hover:text-red-500"
 							>
 								Очистить корзину
 							</Button>
@@ -322,11 +332,7 @@ export default function StepTwo({ onNext, onBack }: StepTwoProps) {
 					</div>
 
 					{onBack && (
-						<Button
-							variant="secondary"
-							onClick={onBack}
-							className="mt-2 w-full lg:w-[300px]"
-						>
+						<Button variant="secondary" onClick={onBack} className="mt-2 w-full lg:w-[300px]">
 							← Назад
 						</Button>
 					)}
